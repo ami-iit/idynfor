@@ -144,12 +144,13 @@ add_subdirectory(src)
 #
 # Note that if your library depends from other libraries, you are probably
 # required to used the install_basic_package_files() DEPENDENCIES option.
-# include(InstallBasicPackageFiles)
-# install_basic_package_files(${PROJECT_NAME}
-#                             VERSION ${${PROJECT_NAME}_VERSION}
-#                             COMPATIBILITY AnyNewerVersion
-#                             VARS_PREFIX ${PROJECT_NAME}
-#                             NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+include(InstallBasicPackageFiles)
+install_basic_package_files(${PROJECT_NAME}
+                            VERSION ${${PROJECT_NAME}_VERSION}
+                            COMPATIBILITY AnyNewerVersion
+                            TARGETS_PROPERTY ${PROJECT_NAME}_TARGETS
+                            VARS_PREFIX ${PROJECT_NAME}
+                            NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 # Add the uninstall target
 include(AddUninstallTarget)
 
