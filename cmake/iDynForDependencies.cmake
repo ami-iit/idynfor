@@ -10,6 +10,7 @@ include(iDynForFindDependencies)
 #---------------------------------------------
 ## Required Dependencies
 find_package(pinocchio REQUIRED)
+find_package(iDynTree REQUIRED)
 
 #---------------------------------------------
 ## Optional Dependencies
@@ -22,3 +23,7 @@ checkandset_dependency(VALGRIND)
 idynfor_dependent_option(IDYNFOR_COMPILE_tests
   "Compile tests?" ON
   "IDYNFOR_USE_Catch2;BUILD_TESTING" OFF)
+
+idynfor_dependent_option(IDYNFOR_RUN_Valgrind_tests
+  "Run Valgrind tests?" OFF
+  "IDYNFOR_COMPILE_tests;VALGRIND_FOUND" OFF)

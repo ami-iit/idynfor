@@ -123,6 +123,8 @@ if(NOT CMAKE_CONFIGURATION_TYPES)
     set(IDYNFOR_BUILD_TYPES "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${IDYNFOR_BUILD_TYPES})
 endif()
+
+
 include(iDynForDependencies)
 
 ### Compile- and install-related commands.
@@ -148,9 +150,11 @@ include(InstallBasicPackageFiles)
 install_basic_package_files(${PROJECT_NAME}
                             VERSION ${${PROJECT_NAME}_VERSION}
                             COMPATIBILITY AnyNewerVersion
-                            TARGETS_PROPERTY ${PROJECT_NAME}_TARGETS
+                            NO_EXPORT   # NO_EXPORT is required since we have only cmake scripts. To be changed in EXPORT ${${PROJECT_NAME}_TARGETS}
                             VARS_PREFIX ${PROJECT_NAME}
-                            NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+                            NO_CHECK_REQUIRED_COMPONENTS_MACRO
+                            DEPENDENCIES ${IDYNFOR_PUBLIC_DEPENDENCIES}
+                            PRIVATE_DEPENDENCIES ${IDYNFOR_PRIVATE_DEPENDENCIES})
 # Add the uninstall target
 include(AddUninstallTarget)
 

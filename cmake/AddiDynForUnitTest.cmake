@@ -6,10 +6,6 @@
 # BSD-3-Clause license. See the accompanying LICENSE file for details.
 
 
-idynfor_dependent_option(IDYNFOR_RUN_Valgrind_tests
-  "Run Valgrind tests?" OFF
-  "IDYNFOR_COMPILE_tests;VALGRIND_FOUND" OFF)
-
 if (IDYNFOR_RUN_Valgrind_tests)
     set(CTEST_MEMORYCHECK_COMMAND ${VALGRIND_PROGRAM})
     set(MEMORYCHECK_COMMAND ${VALGRIND_PROGRAM})
