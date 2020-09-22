@@ -153,8 +153,7 @@ install_basic_package_files(${PROJECT_NAME}
                             NO_EXPORT   # NO_EXPORT is required since we have only cmake scripts. To be changed in EXPORT ${${PROJECT_NAME}_TARGETS}
                             VARS_PREFIX ${PROJECT_NAME}
                             NO_CHECK_REQUIRED_COMPONENTS_MACRO
-                            DEPENDENCIES ${IDYNFOR_PUBLIC_DEPENDENCIES}
-                            PRIVATE_DEPENDENCIES ${IDYNFOR_PRIVATE_DEPENDENCIES})
+                            DEPENDENCIES iDynTree pinocchio)
 # Add the uninstall target
 include(AddUninstallTarget)
 
