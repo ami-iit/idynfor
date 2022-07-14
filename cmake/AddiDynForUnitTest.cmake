@@ -22,16 +22,9 @@ if (IDYNFOR_RUN_Valgrind_tests)
     separate_arguments(MEMCHECK_COMMAND_COMPLETE)
 endif()
 
-if (IDYNFOR_COMPILE_tests)
-    configure_file(cmake/Catch2Main.cpp.in ${CMAKE_BINARY_DIR}/Testing/Catch2Main.cpp)
-    add_library(CatchTestMain ${CMAKE_BINARY_DIR}/Testing/Catch2Main.cpp)
-    target_link_libraries(CatchTestMain PUBLIC Catch2::Catch2)
-endif()
-
-
 function(add_idynfor_test)
 
-    if(IDYNFOR_COMPILE_tests)
+    if(BUILD_TESTING)
 
       set(options )
       set(oneValueArgs NAME)
@@ -52,7 +45,7 @@ function(add_idynfor_test)
       add_executable(${targetname}
           "${unit_test_files}")
 
-      target_link_libraries(${targetname} PRIVATE CatchTestMain ${${prefix}_LINKS})
+      target_link_libraries(${targetname} PRIVATE Catch2::Catch2WithMain ${${prefix}_LINKS})
       target_compile_definitions(${targetname} PRIVATE CATCH_CONFIG_FAST_COMPILE CATCH_CONFIG_DISABLE_MATCHERS)
       target_compile_features(${targetname} PRIVATE cxx_std_17)
       target_compile_definitions(${targetname} PRIVATE -D_USE_MATH_DEFINES)
