@@ -20,6 +20,11 @@ target_include_directories(iDynFor PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOU
 
 target_link_libraries(iDynFor PUBLIC Eigen3::Eigen pinocchio::pinocchio iDynTree::idyntree-core)
 
+# Workaround for https://github.com/ami-iit/idynfor/issues/10
+if(WIN32)
+  target_compile_definitions(iDynFor PUBLIC NOMINMAX)
+endif()
+
 # Specify installation targets, typology and destination folders.
 install(TARGETS iDynFor
         EXPORT  ${PROJECT_NAME}
