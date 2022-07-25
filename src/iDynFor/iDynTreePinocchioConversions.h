@@ -116,9 +116,9 @@ pinocchio::Inertia toPinocchio(const iDynTree::SpatialInertia& inertiaIDynTree);
  */
 template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl>
 pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> &
-buildModelfromiDynTree(const iDynTree::Model & modelIDynTree,
-                       pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> & modelPin,
-                       const bool verbose = false)
+buildPinocchioModelfromiDynTree(const iDynTree::Model & modelIDynTree,
+                                pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> & modelPin,
+                                const bool verbose = false)
 {
     if (modelIDynTree.getNrOfLinks() > 1)
     {

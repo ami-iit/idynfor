@@ -45,7 +45,7 @@ TEST_CASE("toPinocchio::iDynTree::SpatialInertia")
 }
 
 
-TEST_CASE("buildModelfromiDynTree")
+TEST_CASE("buildPinocchioModelfromiDynTree")
 {
     // Seed the random generator used by iDynTree
     srand(0);
@@ -55,7 +55,7 @@ TEST_CASE("buildModelfromiDynTree")
         iDynTree::Model idynmodel = iDynTree::getRandomModel(0);
         pinocchio::Model pinmodel;
         bool verbose = true;
-        iDynFor::buildModelfromiDynTree(idynmodel, pinmodel, verbose);
+        iDynFor::buildPinocchioModelfromiDynTree(idynmodel, pinmodel, verbose);
 
         REQUIRE(pinmodel.nbodies == idynmodel.getNrOfLinks());
         REQUIRE(pinmodel.existBodyName(idynmodel.getLinkName(idynmodel.getDefaultBaseLink())));
