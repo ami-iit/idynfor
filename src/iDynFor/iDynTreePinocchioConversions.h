@@ -21,7 +21,7 @@ namespace details
 // All this part is taken from https://github.com/stack-of-tasks/pinocchio/blob/v2.6.8/src/parsers/urdf/model.hxx
 // Unfortunatly, it is not public, so it can't be reused
 template<typename _Scalar, int Options>
-class iDynTreeVisitorBaseTpl {
+class iDynTreeModelVisitorBaseTpl {
   public:
     enum JointType {
       REVOLUTE, CONTINUOUS, PRISMATIC, FLOATING, PLANAR
@@ -41,9 +41,9 @@ class iDynTreeVisitorBaseTpl {
         const std::string & joint_name,
         const pinocchio::Inertia& Y,
         const std::string & body_name) = 0;
-    iDynTreeVisitorBaseTpl () : log (NULL) {}
+    iDynTreeModelVisitorBaseTpl () : log (NULL) {}
     template <typename T>
-    iDynTreeVisitorBaseTpl& operator<< (const T& t)
+    iDynTreeModelVisitorBaseTpl& operator<< (const T& t)
     {
       if (log != NULL) *log << t;
       return *this;
@@ -52,10 +52,10 @@ class iDynTreeVisitorBaseTpl {
 };
 
 template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl>
-class iDynTreeVisitor : public iDynTreeVisitorBaseTpl<Scalar, Options>
+class iDynTreeModelVisitor : public iDynTreeModelVisitorBaseTpl<Scalar, Options>
 {
   public:
-    typedef iDynTreeVisitorBaseTpl<Scalar, Options> Base;
+    typedef iDynTreeModelVisitorBaseTpl<Scalar, Options> Base;
     typedef typename Base::JointType      JointType;
     typedef typename Base::Vector3        Vector3;
     typedef typename Base::VectorConstRef VectorConstRef;
@@ -63,7 +63,7 @@ class iDynTreeVisitor : public iDynTreeVisitorBaseTpl<Scalar, Options>
     typedef typename Base::Inertia        Inertia;
     typedef pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> Model;
     Model& model;
-    iDynTreeVisitor (Model& model) : model(model) {}
+    iDynTreeModelVisitor (Model& model) : model(model) {}
     void setName (const std::string& name)
     {
       model.name = name;
@@ -95,7 +95,7 @@ class iDynTreeVisitor : public iDynTreeVisitorBaseTpl<Scalar, Options>
 
 };
 
-typedef iDynTreeVisitorBaseTpl<double, 0> iDynTreeVisitorBase;
+typedef iDynTreeModelVisitorBaseTpl<double, 0> iDynTreeModelVisitorBase;
 }
 
 
@@ -127,7 +127,7 @@ buildModelfromiDynTree(const iDynTree::Model & modelIDynTree,
     }
 
     // Build visitior 
-    iDynFor::details::iDynTreeVisitor<Scalar, Options, JointCollectionTpl> visitor(modelPin);
+    iDynFor::details::iDynTreeModelVisitor<Scalar, Options, JointCollectionTpl> visitor(modelPin);
 
     // Once iDynTree::Model has a name pass the name along
     // See https://github.com/robotology/idyntree/issues/908
