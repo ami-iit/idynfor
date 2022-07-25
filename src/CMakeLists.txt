@@ -18,7 +18,7 @@ set_target_properties(iDynFor PROPERTIES VERSION ${${PROJECT_NAME}_VERSION}
 target_include_directories(iDynFor PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
                                           "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
 
-target_link_libraries(iDynFor PUBLIC Eigen3::Eigen pinocchio::pinocchio iDynTree::idyntree-core)
+target_link_libraries(iDynFor PUBLIC Eigen3::Eigen pinocchio::pinocchio iDynTree::idyntree-core  iDynTree::idyntree-model)
 
 # Workaround for https://github.com/ami-iit/idynfor/issues/10
 if(WIN32)
