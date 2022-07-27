@@ -31,7 +31,7 @@ jobs:
     - name: Dependencies
       shell: bash -l {0}
       run: |
-        mamba install cmake compilers make ninja pkg-config idyntree pinocchio catch2 eigenpy=2.7.7
+        mamba install cmake compilers make ninja pkg-config idyntree pinocchio catch2 eigenpy
 
     - name: Dependencies [Linux]
       if: contains(matrix.os, 'ubuntu')
