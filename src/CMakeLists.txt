@@ -3,10 +3,12 @@
 
 set(iDynFor_SRC
         iDynFor/iDynTreePinocchioConversions.cpp
+        iDynFor/KinDynComputations.cpp
 )
 
 set(iDynFor_HDR
         iDynFor/iDynTreePinocchioConversions.h
+        iDynFor/KinDynComputations.h
 )
 
 add_library(iDynFor ${iDynFor_SRC} ${iDynFor_HDR})

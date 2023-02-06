@@ -4,3 +4,7 @@
 add_idynfor_test(NAME iDynTreePinocchioConversionsTest
                  SOURCES iDynTreePinocchioConversionsTest.cpp
                  LINKS iDynFor::iDynFor)
+
+add_idynfor_test(NAME KinDynComputationsTest
+                 SOURCES KinDynComputationsTest.cpp
+                 LINKS iDynFor::iDynFor)
