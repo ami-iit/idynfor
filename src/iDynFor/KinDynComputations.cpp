@@ -22,9 +22,7 @@ KinDynComputations::KinDynComputations()
     m_pimpl = std::make_unique<KinDynComputations::Impl>();
 }
 
-KinDynComputations::~KinDynComputations()
-{
-}
+KinDynComputations::~KinDynComputations() = default;
 
 bool KinDynComputations::loadRobotModel(const iDynTree::Model & model)
 {
