@@ -7,6 +7,7 @@
 #define IDYNfOR_KINDYNCOMPUTATIONS_H
 
 #include <memory>
+#include <vector>
 
 #include <iDynTree/Model/Model.h>
 
@@ -71,6 +72,12 @@ private:
 
     // Base and internal joint position (q)
     VectorXs m_pin_model_position;
+
+    // Conversion-related quantities
+    std::vector<size_t> m_idyntreeDOFOffset2PinocchioJointIndex;
+
+    // Enable printed error messages
+    bool m_verbose = true;
 
     // Cache-related flags methods
     bool m_isFwdKinematicsUpdated = false;

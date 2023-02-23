@@ -16,6 +16,9 @@ namespace iDynTreeFullyCompatible
 struct KinDynComputations::Impl
 {
     iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl> kindyn;
+    // Dummy
+    Eigen::VectorXd bufferJointPos;
+    Eigen::VectorXd bufferJointVel;
 };
 
 KinDynComputations::KinDynComputations()
@@ -52,17 +55,16 @@ bool KinDynComputations::setRobotState(const iDynTree::Transform& world_H_base,
                                        const iDynTree::Vector3& world_gravity)
 {
     // TODO add handling of other arguments
-    Eigen::VectorXd dummy_vec;
     Eigen::Matrix<double, 6, 1> dummy_twist;
     Eigen::Matrix<double, 3, 1> dummy_vec3;
+    m_pimpl->bufferJointPos = iDynTree::toEigen(s);
+    m_pimpl->bufferJointVel = iDynTree::toEigen(s_dot);
 
     return m_pimpl->kindyn.setRobotState(toPinocchio(world_H_base),
-                                         dummy_vec,
+                                         m_pimpl->bufferJointPos,
                                          dummy_twist,
-                                         dummy_vec,
+                                         m_pimpl->bufferJointVel,
                                          dummy_vec3);
-
-    return false;
 }
 
 int KinDynComputations::getFrameIndex(const std::string& frameName) const
