@@ -7,4 +7,4 @@ add_idynfor_test(NAME iDynTreePinocchioConversionsTest
 
 add_idynfor_test(NAME KinDynComputationsTest
                  SOURCES KinDynComputationsTest.cpp
-                 LINKS iDynFor::iDynFor)
+                 LINKS iDynFor::iDynFor iDynTree::idyntree-high-level)
