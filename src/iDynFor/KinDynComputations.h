@@ -40,14 +40,21 @@ public:
     typedef Eigen::Matrix<Scalar, 3, 1, Options> Vector3s;
     typedef Eigen::Matrix<Scalar, 6, 1, Options> Vector6s;
 
-private:
-    iDynTree::Model m_idyntreeModel;
-    pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> m_pinModel;
 
-    // Internal State
+private:
+    // Internal Class State
+
+    // iDynTree model
+    iDynTree::Model m_idyntreeModel;
+    // Pinocchio model
+    pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> m_pinModel;
+    // Pinocchio data
+    pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> m_pinData;
+
     bool m_modelLoaded = false;
 
-    // State
+    // MultiBody Model State (iDynTree-formalism)
+
     // A: absolute/world frame
     // B: base frame
     // Base Position: {}^A H_B
@@ -61,8 +68,24 @@ private:
     // Gravity expressed in absolute frame: {}^A g
     Vector3s m_world_gravity;
 
-public:
+    // MultiBody Model State (pinocchio-formalism)
 
+    // Base and internal joint position (q)
+    VectorXs m_pin_model_position;
+
+    // Cache-related flags methods
+    bool m_isFwdKinematicsUpdated = false;
+
+    // Invalidate the cache of intermediate results (called by setRobotState)
+    void invalidateCache();
+
+    // Compute forward kinematics, if required
+    void computeFwdKinematics();
+
+    // Convert model state from iDynTree formalism to pinocchio formalism
+    void convertModelStateFromiDynTreeToPinocchio();
+
+public:
     /**
      * Constructor.
      */

@@ -80,14 +80,38 @@ public:
     {
         model.name = name;
     }
+
+    void appendBodyToJoint(
+        const pinocchio::FrameIndex fid,
+        const Inertia& Y,
+        const SE3 & placement,
+        const std::string & body_name)
+
+    {
+      const pinocchio::Frame & frame = model.frames[fid];
+      const SE3 & p = frame.placement * placement;
+      model.appendBodyToJoint(frame.parent, Y, p);
+      model.addBodyFrame(body_name, frame.parent, p, (int)fid);
+
+      // Reference to model.frames[fid] have changed because the vector
+      // may have been reallocated.
+    }
+
     virtual void addRootJoint(const Inertia& Y, const std::string& body_name)
     {
-        addFixedJointAndBody(0, SE3::Identity(), "root_joint", Y, body_name);
-        // TODO: change for the correct behavior, see
-        //   https://github.com/stack-of-tasks/pinocchio/pull/1102 for discussions on the topic
-        //   and
-        //   https://github.com/stack-of-tasks/pinocchio/blob/280005c8d99c2485ee942b6a38c4dc0edf75c706/src/parsers/urdf/model.hxx#L117
-        // appendBodyToJoint(0,Y,SE3::Identity(),body_name);
+        // Inspired by https://github.com/stack-of-tasks/pinocchio/blob/v2.6.17/src/parsers/urdf/model.hxx#L343
+        // The main difference is that iDynTree models always assume that the root joint is
+        // always the floating one, so we hardcode the pinocchio::JointModelFreeFlyerTpl choice
+        const pinocchio::Frame & frame = model.frames[0];
+
+        // We give a name that starts with "idynfor_" to avoid collisions with a model
+        // that already contains a joint named "root_joint"
+        pinocchio::JointIndex idx = model.addJoint(frame.parent,
+            pinocchio::JointModelFreeFlyer(),
+            SE3::Identity(), "idynfor_root_joint");
+
+        pinocchio::FrameIndex jointFrameId = model.addJointFrame(idx, 0);
+        appendBodyToJoint(jointFrameId, Y, SE3::Identity(), body_name);
     }
     virtual void addFixedJointAndBody(const pinocchio::FrameIndex& parent_frame_id,
                                       const pinocchio::SE3& joint_placement,
