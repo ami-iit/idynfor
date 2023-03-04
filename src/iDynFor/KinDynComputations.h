@@ -34,6 +34,12 @@ namespace iDynFor
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 struct KinDynComputationsTpl
 {
+public:
+    typedef pinocchio::SE3Tpl<Scalar, Options> SE3s;
+    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1, Options> VectorXs;
+    typedef Eigen::Matrix<Scalar, 3, 1, Options> Vector3s;
+    typedef Eigen::Matrix<Scalar, 6, 1, Options> Vector6s;
+
 private:
     iDynTree::Model m_idyntreeModel;
     pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> m_pinModel;
@@ -45,20 +51,17 @@ private:
     // A: absolute/world frame
     // B: base frame
     // Base Position: {}^A H_B
-    pinocchio::SE3Tpl<Scalar, Options> m_world_H_base;
+    SE3s m_world_H_base;
     // Internal joint positions: s
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 1, Options> m_joint_pos;
+    VectorXs m_joint_pos;
     // Base Velocity: {}^B \mathrm{v}_{A,B}
-    Eigen::Matrix<Scalar, 6, 1, Options> m_base_velocity;
+    Vector6s m_base_velocity;
     // Internal joint velocities: \dot{s}
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 1, Options> m_joint_vel;
+    VectorXs m_joint_vel;
     // Gravity expressed in absolute frame: {}^A g
-    Eigen::Matrix<Scalar, 3, 1, Options> m_world_gravity;
+    Vector3s m_world_gravity;
 
 public:
-    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1, Options> VectorXs;
-    typedef Eigen::Matrix<Scalar, 3, 1, Options> Vector3s;
-    typedef Eigen::Matrix<Scalar, 6, 1, Options> Vector6s;
 
     /**
      * Constructor.
@@ -113,11 +116,11 @@ public:
      * world/inertial frame.
      * @return true if all went well, false otherwise.
      */
-    bool setRobotState(const pinocchio::SE3Tpl<Scalar, Options>& world_H_base,
+    bool setRobotState(const SE3s& world_H_base,
                        const VectorXs& s,
                        const Vector6s& base_velocity,
                        const VectorXs& v,
-                       const Eigen::Matrix<Scalar, 3, 1, Options>& world_gravity);
+                       const Vector3s& world_gravity);
 
     /**
      * Get the index corresponding to a given frame name.
@@ -141,11 +144,11 @@ public:
      * world reference frame (i.e. pos_world = world_H_frame * pos_frame).
      * @return true if all went well, false otherwise.
      */
-    bool getWorldTransform(const iDynTree::FrameIndex frameIndex, pinocchio::SE3& world_H_frame);
+    bool getWorldTransform(const iDynTree::FrameIndex frameIndex, SE3s& world_H_frame);
 };
 
 } // namespace iDynFor
 
-#include <iDynFor/KinDynComputations.hxx>
+#include <iDynFor/KinDynComputations.tpp>
 
 #endif

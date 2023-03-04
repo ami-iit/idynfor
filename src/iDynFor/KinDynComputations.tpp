@@ -47,11 +47,11 @@ KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getRobotModel() cons
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setRobotState(
-    const pinocchio::SE3Tpl<Scalar, Options>& world_H_base,
+    const SE3s& world_H_base,
     const VectorXs& joint_pos,
     const Vector6s& base_velocity,
     const VectorXs& joint_vel,
-    const Eigen::Matrix<Scalar, 3, 1, Options>& world_gravity)
+    const Vector3s& world_gravity)
 {
     // TODO(traversaro): call as soon as it is implemented
     // this->invalidateCache();
@@ -89,7 +89,7 @@ std::string KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrame
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getWorldTransform(
-    const iDynTree::FrameIndex frameIndex, pinocchio::SE3& world_H_frame)
+    const iDynTree::FrameIndex frameIndex, SE3s& world_H_frame)
 {
     // TODO: implement frame different from the base one
     iDynTree::reportErrorIf(frameIndex != 0,
