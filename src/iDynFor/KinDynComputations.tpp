@@ -7,7 +7,7 @@
 
 #include <iDynTree/Core/Utils.h>
 
-#include "pinocchio/algorithm/joint-configuration.hpp"
+#include <pinocchio/algorithm/joint-configuration.hpp>
 
 namespace iDynFor
 {
