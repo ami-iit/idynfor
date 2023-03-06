@@ -1,7 +1,7 @@
 # iDynFor theory background
 
 This document provide an overview of the different semantics between iDynTree and Pinocchio
-data-structures and interfaces, and provide a reference for the implentation in iDynFor classes, that implements iDynTree-inspired interfaces using Pinocchio.
+data-structures and interfaces, and provide a reference for the implementation in iDynFor classes, that implements iDynTree-inspired interfaces using Pinocchio.
 
 ## iDynTree::Model vs pinocchio::Model
 
