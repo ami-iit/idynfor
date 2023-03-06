@@ -76,3 +76,25 @@ TEST_CASE("buildPinocchioModelfromiDynTree")
         REQUIRE(idyn_inertia_param.isApprox(pin_inertia_param_idyn_serialization));
     }
 }
+
+TEST_CASE("toAndFromPinocchio::iDynTree::Transform")
+{
+    // Seed the random generator used by iDynTree
+    srand(0);
+
+    for (size_t i = 0; i < 100; i++)
+    {
+        iDynTree::Transform idyn_transform = iDynTree::getRandomTransform();
+        pinocchio::SE3 pin_transform = iDynFor::toPinocchio(idyn_transform);
+        iDynTree::Transform idyn_transform_via_pin = iDynFor::fromPinocchio(pin_transform);
+
+        Eigen::Matrix4d eigen_transform
+            = iDynTree::toEigen(idyn_transform.asHomogeneousTransform());
+        Eigen::Matrix4d eigen_transform_check
+            = iDynTree::toEigen(idyn_transform_via_pin.asHomogeneousTransform());
+        std::cerr << "eigen_transform: " << eigen_transform << std::endl;
+        std::cerr << "eigen_transform_check: " << eigen_transform_check << std::endl;
+
+        REQUIRE(eigen_transform.isApprox(eigen_transform_check));
+    }
+}

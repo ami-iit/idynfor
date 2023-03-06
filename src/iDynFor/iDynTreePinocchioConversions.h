@@ -114,6 +114,16 @@ typedef iDynTreeModelVisitorBaseTpl<double, 0> iDynTreeModelVisitorBase;
 } // namespace details
 
 /**
+ * Convert an iDynTree::Transform to a pinocchio::SE3
+ */
+pinocchio::SE3 toPinocchio(const iDynTree::Transform& transform_idyntree);
+
+/**
+ * Convert a pinocchio::SE3 to iDynTree::Transform
+ */
+iDynTree::Transform fromPinocchio(const pinocchio::SE3& se3_pinocchio);
+
+/**
  * Convert an iDynTree::SpatialInertia to a pinocchio::Inertia
  */
 pinocchio::Inertia toPinocchio(const iDynTree::SpatialInertia& inertiaIDynTree);
