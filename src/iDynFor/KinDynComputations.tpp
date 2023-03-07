@@ -77,7 +77,8 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
     m_pinData = pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>(m_pinModel);
 
     // Resize m_pin_model_position to right size
-    m_pin_model_position = pinocchio::randomConfiguration(m_pinModel);
+    m_pin_model_position.resize(m_pinModel.nq);
+    m_pin_model_position.setZero();
 
     return (m_modelLoaded = true);
 }
