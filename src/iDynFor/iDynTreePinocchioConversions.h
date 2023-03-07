@@ -91,7 +91,7 @@ public:
       const pinocchio::Frame & frame = model.frames[fid];
       const SE3 & p = frame.placement * placement;
       model.appendBodyToJoint(frame.parent, Y, p);
-      model.addBodyFrame(body_name, frame.parent, p, (int)fid);
+      model.addBodyFrame(body_name, frame.parent, p, static_cast<int>(fid));
 
       // Reference to model.frames[fid] have changed because the vector
       // may have been reallocated.
