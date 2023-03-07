@@ -10,13 +10,17 @@ data-structures and interfaces, and provide a reference for the implementation i
 In `iDynTree::Model` a multibody is composed by its links that are interconnected by joints.
 Each link is connected to another link by a joint, so you can't attach a joint to another joint
 without having a link in the middle. Furthermore, `iDynTree::Model` consider all models to be
-floating base by default, so there is no "joint" connecting the base to "universe" or "world" frame. Only links have a frame w.r.t. to which you can compute forward kinematics or the jacobian, while there is no explicit concept of "joint frame"
+floating base by default, so there is no "joint" connecting the base to "universe" or "world" frame. 
+Only links have a frame w.r.t. to which you can compute forward kinematics or the jacobian, while there is no explicit concept of "joint frame"
 
 On the other hand, in `pinocchio::Model` joints are interconnected to each other, to build
-the so-called "kinematic tree". So multiple joints can be connected to each other, without having a body in the middle. On the other hand, each link must have a parent joint, even if it is the first body of the kinematic tree.
-A model can be connected to the "universe" reference frame with any kind of frame, but for consistency with `iDynTree` the pinocchio models built in `iDynFor` are always connected to "universe" with a `pinocchio::JointFreeFlyer` (i.e. 6-DOF joint).
+the so-called "kinematic tree". So multiple joints can be connected to each other, without having 
+a body in the middle. Furthermore, each link must have a parent joint, even if it is the first body of the kinematic tree.
+So, an empty pinocchio model contains always the `universe` link, and the parent joint of the `universe` link.
+The rest of the model can be connected to the `universe` reference frame with any kind of frame, but for consistency 
+with `iDynTree` the pinocchio models built in `iDynFor` are always connected to "universe" with a `pinocchio::JointFreeFlyer` (i.e. 6-DOF joint).
 
-For these reasons, the count of links and joints in `iDynTree::Model` and  `pinocchio::Model` are differents.
+For these reasons, the count of links and joints in `iDynTree::Model` and  `pinocchio::Model` are different.
 For links, in iDynTree only the internal bodies that compose the multibody model are counted, while for `pinocchio` also the `universe` "link" is considered.
 For joints, in iDynTree only the joints that internconnect internal links are considered, while in `pinocchio` two additional joints are considerd:
 * the joint that connects the floating base to `universe`,
