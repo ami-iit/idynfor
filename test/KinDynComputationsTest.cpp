@@ -19,8 +19,9 @@ TEST_CASE("KinDynComputations")
 
     for (size_t i = 0; i < 10; i++)
     {
-        // For now just support 0-joint models with 0 additional frames
-        iDynTree::Model idynmodel = iDynTree::getRandomModel(0, 0);
+        // For now just support 0-joint models
+        size_t nrOfAdditionalFrames = 10;
+        iDynTree::Model idynmodel = iDynTree::getRandomModel(0, nrOfAdditionalFrames);
 
         // Create both a new and and old KinDynComputations to check consistency
         iDynFor::iDynTreeFullyCompatible::KinDynComputations kinDynFor;
@@ -57,9 +58,6 @@ TEST_CASE("KinDynComputations")
             REQUIRE(
                 kinDynTree.setRobotState(world_H_base, joint_pos, base_vel, joint_vel, gravity));
             REQUIRE(kinDynFor.setRobotState(world_H_base, joint_pos, base_vel, joint_vel, gravity));
-
-            // TODO : remove check when there are other frames
-            REQUIRE(idynmodel.getNrOfFrames() == 1);
 
             // Test frame-related methods
             int nrOfFramesToTest = 3;

@@ -71,6 +71,7 @@ public:
     typedef typename Base::SE3 SE3;
     typedef typename Base::Inertia Inertia;
     typedef pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> Model;
+    typedef pinocchio::FrameTpl<Scalar, Options> Frame;
     Model& model;
     iDynTreeModelVisitor(Model& model)
         : model(model)
@@ -132,6 +133,22 @@ public:
 
         model.addBodyFrame(body_name, parent_frame_parent, placement, (int)fid);
     }
+
+    virtual void addAdditionalFrame(const std::string& additionalFrameName,
+                                    const std::string& parentLinkName,
+                                    const pinocchio::SE3& link_H_additionalframe)
+    {
+        pinocchio::FrameIndex parentLinkIndex = model.getBodyId(parentLinkName);
+        pinocchio::JointIndex parentJointIndex = model.frames[parentLinkIndex].parent;
+        pinocchio::SE3 joint_H_link = model.frames[parentLinkIndex].placement;
+        pinocchio::SE3 joint_H_additionalframe = joint_H_link*link_H_additionalframe;
+        // The previousFrame attribute is only used to distinguish the interconnection
+        // of multiple frames that are rigidly interconnected to the same joint,
+        // see https://github.com/stack-of-tasks/pinocchio/blob/78d62096002ffa3790638e392f0b6e4a5efc3d34/src/algorithm/frames.hxx#L280
+        // In this case we are building a Frame with zero inertia, so there previousFrame does not have any effect,
+        // anyhow for consistency we mark the parentLinkIndex as previousFrame
+        model.addFrame(Frame(additionalFrameName, parentJointIndex, parentLinkIndex, joint_H_additionalframe, pinocchio::OP_FRAME));
+    }
 };
 
 typedef iDynTreeModelVisitorBaseTpl<double, 0> iDynTreeModelVisitorBase;
@@ -189,6 +206,17 @@ buildPinocchioModelfromiDynTree(const iDynTree::Model& modelIDynTree,
 
     // Add root link
     visitor.addRootJoint(toPinocchio(defaultBaseLink->getInertia()), defaultBaseLinkName);
+
+    // Add additional frames of root link
+    std::vector<iDynTree::FrameIndex> localFrmIdxs;
+    modelIDynTree.getLinkAdditionalFrames(modelIDynTree.getDefaultBaseLink(), localFrmIdxs);
+    for(iDynTree::FrameIndex localFrmIdx: localFrmIdxs)
+    {
+        std::string additionalFrameName = modelIDynTree.getFrameName(localFrmIdx);
+        iDynTree::Transform link_H_additionalFrame = modelIDynTree.getFrameTransform(localFrmIdx);
+        visitor.addAdditionalFrame(additionalFrameName, defaultBaseLinkName,
+                                   toPinocchio(link_H_additionalFrame));
+    }
 
     return modelPin;
 }

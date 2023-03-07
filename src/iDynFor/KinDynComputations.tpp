@@ -146,11 +146,6 @@ template <typename Scalar, int Options, template <typename, int> class JointColl
 bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getWorldTransform(
     const iDynTree::FrameIndex frameIndex, SE3s& world_H_frame)
 {
-    // TODO: implement frame different from the base one
-    iDynTree::reportErrorIf(frameIndex != 0,
-                            "iDynFor::KinDynComputationsTpl::getWorldTransform",
-                            "requested frame not supported");
-
     this->computeFwdKinematics();
 
     // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
