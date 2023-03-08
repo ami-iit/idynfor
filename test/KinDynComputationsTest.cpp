@@ -76,8 +76,6 @@ TEST_CASE("KinDynComputations")
                     kinDynFor.getWorldTransform(randomFrameIndex).asHomogeneousTransform());
                 Eigen::Matrix4d worldTransformTree = iDynTree::toEigen(
                     kinDynTree.getWorldTransform(randomFrameIndex).asHomogeneousTransform());
-                std::cerr << "worldTransformFor: " << worldTransformFor << std::endl;
-                std::cerr << "worldTransformTree: " << worldTransformTree << std::endl;
 
                 REQUIRE(worldTransformFor.isApprox(worldTransformTree));
             }
