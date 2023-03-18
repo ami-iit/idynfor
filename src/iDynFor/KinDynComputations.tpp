@@ -23,7 +23,7 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::invalidateCache
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::computeFwdKinematics()
 {
-    if( this->m_isFwdKinematicsUpdated )
+    if (this->m_isFwdKinematicsUpdated)
     {
         return;
     }
@@ -38,7 +38,8 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::computeFwdKinem
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
-void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::convertModelStateFromiDynTreeToPinocchio()
+void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
+    convertModelStateFromiDynTreeToPinocchio()
 {
     typedef Eigen::Matrix<Scalar, 4, 1, Options> Vector4s;
     typedef Eigen::Quaternion<Scalar, Options> Quaternions;
@@ -46,12 +47,13 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::convertModelSta
     // Position
     // The initial three elements of the pinocchio q vector are the origin of the base frame
     // w.r.t. to the world frame, i.e. {}^A o_B \in \mathbb{R}^3
-    m_pin_model_position.block(0,0,3,1) = m_world_H_base.translation();
+    m_pin_model_position.block(0, 0, 3, 1) = m_world_H_base.translation();
 
     // The next four elements are the quaternion corresponding to the {}^A R_B \in SO(3) orientation
-    // As the quaternion's coeffs method is used by pinocchio, pay attention that the order is (imaginary, real)
+    // As the quaternion's coeffs method is used by pinocchio, pay attention that the order is
+    // (imaginary, real)
     Quaternions quaternion(m_world_H_base.rotation());
-    m_pin_model_position.block(3,0,4,1) = Eigen::Map<Vector4s>(quaternion.coeffs().data());
+    m_pin_model_position.block(3, 0, 4, 1) = Eigen::Map<Vector4s>(quaternion.coeffs().data());
 
     // The rest of the elements are the position of the internal joints, accounting for the
     // difference in position coordinate serialization between iDynTree and Pinocchio
@@ -59,7 +61,6 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::convertModelSta
 
     return;
 }
-
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobotModel(
@@ -157,7 +158,8 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getWorldTransfo
     // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
     // TODO(traversaro): also support additional frames, not only frames associated to a link
     // TODO(traversaro): cache this information, there is no need to do a string search every time
-    pinocchio::FrameIndex pinFrameIndex = m_pinModel.getFrameId(m_idyntreeModel.getFrameName(frameIndex));
+    pinocchio::FrameIndex pinFrameIndex
+        = m_pinModel.getFrameId(m_idyntreeModel.getFrameName(frameIndex));
 
     // After computeFwdKinematics computed the forwardKinematics, in m_pinData it is
     // store the universe_H_<..> transform for each joint frame

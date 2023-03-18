@@ -40,7 +40,6 @@ public:
     typedef Eigen::Matrix<Scalar, 3, 1, Options> Vector3s;
     typedef Eigen::Matrix<Scalar, 6, 1, Options> Vector6s;
 
-
 private:
     // Internal Class State
 

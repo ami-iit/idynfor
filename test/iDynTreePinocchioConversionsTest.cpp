@@ -49,19 +49,20 @@ TEST_CASE("toPinocchio::iDynTree::SpatialInertia")
 
 std::string fromPinocchioFrameTypeToString(const pinocchio::FrameType& in)
 {
-    switch(in) {
-        case pinocchio::FrameType::OP_FRAME:
-            return "OP_FRAME";
-        case pinocchio::FrameType::JOINT:
-            return "JOINT";
-        case pinocchio::FrameType::FIXED_JOINT:
-            return "FIXED_JOINT";
-        case pinocchio::FrameType::BODY:
-            return "BODY";
-        case pinocchio::FrameType::SENSOR:
-            return "SENSOR";
-        default:
-            return "UNKNOWN";
+    switch (in)
+    {
+    case pinocchio::FrameType::OP_FRAME:
+        return "OP_FRAME";
+    case pinocchio::FrameType::JOINT:
+        return "JOINT";
+    case pinocchio::FrameType::FIXED_JOINT:
+        return "FIXED_JOINT";
+    case pinocchio::FrameType::BODY:
+        return "BODY";
+    case pinocchio::FrameType::SENSOR:
+        return "SENSOR";
+    default:
+        return "UNKNOWN";
     }
 }
 
@@ -71,7 +72,6 @@ void printPinocchioFrameInfo(const pinocchio::Frame& frame)
     std::cerr << "frame.parent(joint): " << frame.parent << std::endl;
     std::cerr << "frame.previousFrame: " << frame.previousFrame << std::endl;
     std::cerr << "frame.type: " << fromPinocchioFrameTypeToString(frame.type) << std::endl;
-
 }
 
 void printPinocchioModelInfo(const pinocchio::Model& model)
@@ -81,15 +81,14 @@ void printPinocchioModelInfo(const pinocchio::Model& model)
     std::cerr << "model.nbodies: " << model.nbodies << std::endl;
     std::cerr << "model.njoints: " << model.njoints << std::endl;
     std::cerr << "model.nframes: " << model.nframes << std::endl;
-    for(auto& frame: model.frames)
+    for (auto& frame : model.frames)
     {
         printPinocchioFrameInfo(frame);
     }
-    for(auto& inertia: model.inertias)
+    for (auto& inertia : model.inertias)
     {
         std::cerr << "inertia: " << inertia << std::endl;
     }
-
 }
 
 TEST_CASE("buildPinocchioModelfromiDynTree")
@@ -124,14 +123,15 @@ TEST_CASE("buildPinocchioModelfromiDynTree")
         REQUIRE(pinmodel.existBodyName(idynmodel.getLinkName(idynmodel.getDefaultBaseLink())));
 
         // Verify that the inertia of the models match
-        for(iDynTree::LinkIndex lnkIdxiDynTree = 0; lnkIdxiDynTree < idynmodel.getNrOfLinks(); lnkIdxiDynTree++)
+        for (iDynTree::LinkIndex lnkIdxiDynTree = 0; lnkIdxiDynTree < idynmodel.getNrOfLinks();
+             lnkIdxiDynTree++)
         {
-            // In iDynTree, inertia is indexed w.r.t. to LinkIndex, in pinocchio with rispect to the parent
-            // joint of the link with that inertia. So, here we need to find the JointIndex corresponding
-            // to the inertia we are looking for
-            pinocchio::JointIndex lnkIdxPinocchio = pinmodel.frames[pinmodel.getBodyId(idynmodel.getLinkName(lnkIdxiDynTree))].parent;
-            iDynTree::SpatialInertia idyn_inertia
-                = idynmodel.getLink(lnkIdxiDynTree)->getInertia();
+            // In iDynTree, inertia is indexed w.r.t. to LinkIndex, in pinocchio with rispect to the
+            // parent joint of the link with that inertia. So, here we need to find the JointIndex
+            // corresponding to the inertia we are looking for
+            pinocchio::JointIndex lnkIdxPinocchio
+                = pinmodel.frames[pinmodel.getBodyId(idynmodel.getLinkName(lnkIdxiDynTree))].parent;
+            iDynTree::SpatialInertia idyn_inertia = idynmodel.getLink(lnkIdxiDynTree)->getInertia();
             pinocchio::Inertia pin_inertia = pinmodel.inertias[lnkIdxPinocchio];
 
             Eigen::Matrix<double, 10, 1> idyn_inertia_param
@@ -159,8 +159,8 @@ TEST_CASE("toAndFromPinocchio::iDynTree::Transform")
             = iDynTree::toEigen(idyn_transform.asHomogeneousTransform());
         Eigen::Matrix4d eigen_transform_check
             = iDynTree::toEigen(idyn_transform_via_pin.asHomogeneousTransform());
-        //std::cerr << "eigen_transform: " << eigen_transform << std::endl;
-        //std::cerr << "eigen_transform_check: " << eigen_transform_check << std::endl;
+        // std::cerr << "eigen_transform: " << eigen_transform << std::endl;
+        // std::cerr << "eigen_transform_check: " << eigen_transform_check << std::endl;
 
         REQUIRE(eigen_transform.isApprox(eigen_transform_check));
     }
