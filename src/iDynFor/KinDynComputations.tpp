@@ -111,7 +111,7 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
             // I have no idea why this offset works
             // TODO: understand
             size_t posCoordOffsetPinocchio
-                = m_pinModel.joints[m_pinModel.getJointId(jntName)].idx_q();
+                = m_pinModel.idx_qs[m_pinModel.getJointId(jntName)];
             m_idyntreeDOFOffset2PinocchioJointIndex[visitedJoint->getPosCoordsOffset()]
                 = posCoordOffsetPinocchio;
         }
