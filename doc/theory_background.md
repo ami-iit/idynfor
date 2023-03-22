@@ -96,8 +96,9 @@ $$
 $$
 
 Note that the $-$ in the axis transformation formula is required to ensure that:
+
 $$
-(H({}^C d^{axis}, {}^C o^{axis}, s) {}^C H_D^{rest})^{-1} = (H({}^D d^{axis}, {}^D o^{axis}, s) {}^D H_C^{rest})^{-1}
+(H({}^C d^{axis}, {}^C o^{axis}, s) {}^C H_D^{rest})^{-1}  = (H({}^D d^{axis}, {}^D o^{axis}, s) {}^D H_C^{rest})^{-1}
 $$
 
 
@@ -122,6 +123,7 @@ In Pinocchio, to represent a revolute joint there are two transforms and an axis
 * The axis ${}^J d^{axis}$
 
 And the total rotation is computed as:
+
 $$
 {}^C H_D (s) = {}^C H_J H({}^J d^{axis}, 0, s) {}^J H_D
 $$
