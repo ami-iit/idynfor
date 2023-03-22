@@ -69,7 +69,7 @@ containing the position of internal joints of the, the `iDynTree::IJoint::getTra
 
 ##### `FixedJoint`
 
-A fixed joint represent a constraint of all the 6 DOF between two links. So, it is parametrized directly by the transform ${}^C H_D$, and it returns ${}^C H_D$ if `getTransform(s, C_index, D_index)` is called or ${}^C H_D^{-1} = {}}^D H_C$ if `getTransform(s, D_index, C_index)` is called.
+A fixed joint represent a constraint of all the 6 DOF between two links. So, it is parametrized directly by the transform ${}^C H_D$, and it returns ${}^C H_D$ if `getTransform(s, C_index, D_index)` is called or ${}^C H_D^{-1} = {}^D H_C$ if `getTransform(s, D_index, C_index)` is called.
 
 ##### `RevoluteJoint`
 
