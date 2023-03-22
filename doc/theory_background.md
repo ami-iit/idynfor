@@ -41,31 +41,33 @@ As an example, if you have a single link floating base model, this is the number
 
 In iDynTree, the joint information can be accessed via the `iDynTree::IJoint` C++ interface.
 It is an interface that is designed to be `undirect`, i.e. it can explicitly specify at runtime
-which link is the one considred `parent` and which one is considered `child`.
+which link is the one considered `parent` and which one is considered `child`.
 
 Assuming that the joint `J` connects to links `C` and `D`, and given that $s \in \mathbb{R}^{dof}$ is the vector
-containing the position of internal joints of the, the `iDynTree::IJoint::getTransform(s, C_index, D_index)` computes the transform ${}^C H_D$. How this transform is computed depends on the type of joint used.
+containing the position of internal dofs of the joint, the `iDynTree::IJoint::getTransform(s, C_index, D_index)` computes the transform ${}^C H_D$. How this transform is computed depends on the type of joint used.
 
 ##### `FixedJoint`
 
-A fixed joint represent a constraint of all the 6 DOF between two links. So, it is parametrized directly by the transform ${}^C H_D$, and it returns ${}^C H_D$ if `getTransform(s, C_index, D_index)` is called or ${}^C H_D^{-1} = {}^D H_C$ if `getTransform(s, D_index, C_index)` is called.
+A fixed joint represents a constraint of all the 6 DOF between two links. So, it is parametrized directly by the transform ${}^C H_D$, and it returns ${}^C H_D$ if `getTransform(s, C_index, D_index)` is called or ${}^C H_D^{-1} = {}^D H_C$ if `getTransform(s, D_index, C_index)` is called.
 
 ##### `RevoluteJoint`
 
-A revolute joint represent a constraint that constraints 5 DOF between two links, leaving the two links free to move around a given axis. So, the relative position between the two links is represented by the so-called joint position $s \in \mathbb{R}^{1}.
+A revolute joint represents a constraint that constraints 5 DOF between two links, leaving the two links free to move around a given axis. So, the relative position between the two links is represented by the so-called joint position $s \in \mathbb{R}^{1}.
 
 So, to represent a `RevoluteJoint` iDynTree uses the following parameters:
-* The rest transform ${}^C H_D^{rest}$, that can be accessed via `iDynTree::getRestTransform(C_index, D_index)`, that is the relative position between the two links when $s = 0$ .
-* The axis along which the rotation is allowed, that is itself represented by two vectors:
+* The rest transform ${}^C H_D^{rest}$, that can be accessed via `iDynTree::getRestTransform(C_index, D_index)`, that is the relative pose between the two links when $s = 0$ .
+* The axis along which the rotation is allowed, is itself represented by two vectors:
   * The axis direction $d^{axis} \in \mathbb{R}^3$, that being a pure direction is subject to the constraint $|d| = 1$,
   * The axis origin $^{axis} \in \mathbb{R}^3$, that is a point in the 3D space.
 
 The transform between the frames $C$ and $D$, given the joint position $s$ is computed as in the following:
+
 $$
 {}^C H_D(s) = H({}^C d^{axis}, {}^C o^{axis}, s) {}^C H_D^{rest}
 $$
 
 The axis can be represented in both $C$ and $D$ frames, and you can go from one to another representation as in the following equations:
+
 $$
 {}^C d^{axis} = -{}^C R_D {}^D d^{axis}
 $$
@@ -107,7 +109,7 @@ $$
 {}^C H_D (s) = {}^C H_J H({}^J d^{axis}, 0, s) {}^J H_D
 $$
 
-The major difference w.r.t. to iDynTree is that the axis has not notion of "origin", so for placing the frame $J$
+The major difference w.r.t. to iDynTree is that the axis has no notion of "origin", so for placing the frame $J$
 we need to place it in the origin of the axis.
 
 #### Convert from iDynTree to pinocchio
@@ -124,7 +126,7 @@ ${}^J H_D = 1_4$
 We can simply set the origin of $J$ to match the origin of the axis and the orientation of $J$ to match the orientation of $D$, i.e. $J = (o^{axis},[D])$. Then we set ${}^J H_D$ such that the overall result match.
 
 $$
-{}^C H_J = {}^C H_{o^{axis} [D]} = {}^C H_D^{rest} {}^D H_{o^{axis} [D]} = {}^C H_D^{rest}$ \begin{bmatrix} I_3 & {}^D o^{axis} \\\\ 0_{3 \times 1}  & 1 \end{bmatrix}
+{}^C H_J = {}^C H_{o^{axis} [D]} = {}^C H_D^{rest} {}^D H_{o^{axis} [D]} = {}^C H_D^{rest} \begin{bmatrix} I_3 & {}^D o^{axis} \\\\ 0_{3 \times 1}  & 1 \end{bmatrix}
 $$
 
 $$
@@ -152,7 +154,7 @@ corresponding to ${}^A R_B$, see https://github.com/stack-of-tasks/pinocchio/iss
 
 To convert from the `iDynTree` representation to the `pinocchio` one, one needs to convert the ${}^A H_B$ to the first 7 elements of $q$, and then convert $s$ to the last $dof=nq-7$ elements of $q$, accounting for the fact that the ordering used in iDynTree and in pinocchio is different.
 
-For what regard the internal joint positions, for both Pinocchio and iDynTree they are represented by $dof$ scalars. For iDynTree, these are exactly the elements of the $s \in \mathbb{R}^{dof}$ vector, while for the Pinocchio they are the last $dof$ elements of the $q$ vectors. Anyhow, what changes is the
+For what regards the internal joint positions, for both Pinocchio and iDynTree they are represented by $dof$ scalars. For iDynTree, these are exactly the elements of the $s \in \mathbb{R}^{dof}$ vector, while for the Pinocchio they are the last $dof$ elements of the $q$ vectors. Anyhow, what changes is the
 **serialization** of this elements. In the iDynTree case, the DOF serialization can be arbitrary. For example, when loading a model the desired serialization can be passed as the `consideredJoints` arguments of `iDynTree::ModelLoader::loadReducedModelFromFullModel` or `iDynTree::ModelLoader::loadReducedModelFromFile` methods. In the pinocchio case, the joint serialization **must** follow a strict depth-first order induced by the kinematic structure of the model an the selected floating base. To go from iDynTree's $s$ to Pinocchio's $q[7:end]$, we need to define an appropriate [permutation matrix](https://en.wikipedia.org/wiki/Permutation_matrix) $P \in \mathbb{R}^{dof \times dof}$:
 
 $$
