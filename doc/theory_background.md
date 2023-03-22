@@ -28,33 +28,12 @@ For joints, in iDynTree only the joints that internconnect internal links are co
 * the joint that connects the floating base to `universe`,
 * the  parent joint of `universe`.
 
-We will always have that for corresponding models:
-* `iDynTree::Model::getNrOfLinks() + 1 == pinocchio::Model::nbodies` and
-* `iDynTree::Model::getNrOfJoints() + 2 == pinocchio::Model::njoints`.
-
 As an example, if you have a single link floating base model, this is the number of its joints and links w.r.t. if modeled used `iDynTree::Model` and  `pinocchio::Model`:
 
 | Quantity |  `iDynTree::Model`  | `pinocchio::Model` |
 |:--------:|:---------------------:|:--------------------:|
 | Number of Links | 1             |          2            |
 | Number of Joints | 0             |         2            |
-
-### Model Position
-
-**Note: as of iDynTree 8.1.0, iDynTree only supports internal joints of type revolute or prismatic, so
-in this documentation we will always consider the case in which the  derivative of internal shape of the multibody model is used to represent the internal velocity of the multibody model, even if in theory
-the Joint interface used by iDynTree could also support joints in which it may be convenient to use
-as velocity a quantity different from the derivative of the joint position, such as spherical joints.**
-
-In `iDynTree` the model position is represented by a pair of quantities:
-* ${}^A H_B \in SE(3)$, i.e. the homogeneous transform between the base link frame ($B$) and the universe/world "absolute" frame ($A$),
-* $s \in \mathbb{R}^{dof}$, i.e. vector of internal position, also called "shape" (hence the "s") of the multibody model.
-
-In `pinocchio`, the model position is represented by a single quantity:
-* $q \in \mathbb{R}^{nq}$, i.e. the vector of position of all joints, including the joint connecting the base to the "universe" frame. The first 7 elements are the position of the joint connecting the base to the "universe" frame, with the first 3 elements being the ${}^A o_B$, and the other 4 elements a quaternion
-corresponding to ${}^A R_B$, see https://github.com/stack-of-tasks/pinocchio/issues/65#issuecomment-160931189 .
-
-To convert from the `iDynTree` representation to the `pinocchio` one, one needs to convert the ${}^A H_B$ to the first 7 elements of $q$, and then convert $s$ to the last $dof=nq-7$ elements of $q$, accounting for the fact that the ordering used in iDynTree and in pinocchio is different.
 
 ### Joints
 
@@ -144,6 +123,41 @@ ${}^J H_D = 1_4$
 
 We can simply set the origin of $J$ to match the origin of the axis and the orientation of $J$ to match the orientation of $D$, i.e. $J = (o^{axis},[D])$. Then we set ${}^J H_D$ such that the overall result match.
 
-${}^C H_J = {}^C H_{o^{axis} [D]} = {}^C H_D^{rest} {}^D H_{o^{axis} [D]} = {}^C H_D^{rest} \begin{bmatrix} I_3 & {}^D o^{axis} \\ 0_{3 \times 1}  & 1 \end{bmatrix}$
-${}^J H_D = {}^{o^{axis} [D]} H_D = {}^{o^{axis}[D]} H_D = \begin{bmatrix} I_3 & -{}^D o^{axis} \\ 0_{3 \times 1}  & 1 \end{bmatrix}   $
-${}^J d^{axis} = {}^C d^{axis}$
+$$
+{}^C H_J = {}^C H_{o^{axis} [D]} = {}^C H_D^{rest} {}^D H_{o^{axis} [D]} = {}^C H_D^{rest}$ \begin{bmatrix} I_3 & {}^D o^{axis} \\\\ 0_{3 \times 1}  & 1 \end{bmatrix}
+$$
+
+$$
+{}^J H_D = {}^{o^{axis} [D]} H_D = {}^{o^{axis}[D]} H_D = \begin{bmatrix} I_3 & -{}^D o^{axis} \\\\ 0_{3 \times 1}  & 1 \end{bmatrix} 
+$$
+
+$$
+{}^J d^{axis} = {}^C d^{axis}
+$$
+
+### Model Position
+
+**Note: as of iDynTree 8.1.0, iDynTree only supports internal joints of type revolute or prismatic, so
+in this documentation we will always consider the case in which the  derivative of internal shape of the multibody model is used to represent the internal velocity of the multibody model, even if in theory
+the Joint interface used by iDynTree could also support joints in which it may be convenient to use
+as velocity a quantity different from the derivative of the joint position, such as spherical joints.**
+
+In `iDynTree` the model position is represented by a pair of quantities:
+* ${}^A H_B \in SE(3)$, i.e. the homogeneous transform between the base link frame ($B$) and the universe/world "absolute" frame ($A$),
+* $s \in \mathbb{R}^{dof}$, i.e. vector of internal position, also called "shape" (hence the "s") of the multibody model.
+
+In `pinocchio`, the model position is represented by a single quantity:
+* $q \in \mathbb{R}^{nq}$, i.e. the vector of position of all joints, including the joint connecting the base to the "universe" frame. The first 7 elements are the position of the joint connecting the base to the "universe" frame, with the first 3 elements being the ${}^A o_B$, and the other 4 elements a quaternion
+corresponding to ${}^A R_B$, see https://github.com/stack-of-tasks/pinocchio/issues/65#issuecomment-160931189 .
+
+To convert from the `iDynTree` representation to the `pinocchio` one, one needs to convert the ${}^A H_B$ to the first 7 elements of $q$, and then convert $s$ to the last $dof=nq-7$ elements of $q$, accounting for the fact that the ordering used in iDynTree and in pinocchio is different.
+
+For what regard the internal joint positions, for both Pinocchio and iDynTree they are represented by $dof$ scalars. For iDynTree, these are exactly the elements of the $s \in \mathbb{R}^{dof}$ vector, while for the Pinocchio they are the last $dof$ elements of the $q$ vectors. Anyhow, what changes is the
+**serialization** of this elements. In the iDynTree case, the DOF serialization can be arbitrary. For example, when loading a model the desired serialization can be passed as the `consideredJoints` arguments of `iDynTree::ModelLoader::loadReducedModelFromFullModel` or `iDynTree::ModelLoader::loadReducedModelFromFile` methods. In the pinocchio case, the joint serialization **must** follow a strict depth-first order induced by the kinematic structure of the model an the selected floating base. To go from iDynTree's $s$ to Pinocchio's $q[7:end]$, we need to define an appropriate [permutation matrix](https://en.wikipedia.org/wiki/Permutation_matrix) $P \in \mathbb{R}^{dof \times dof}$:
+
+$$
+q[7:end] = P s 
+$$
+
+The $P$ matrix can be computed by matching iDynTree's DOF serialization, obtained from the `iDynTree::IJoint::getPosCoordsOffset` and `iDynTree::IJoint::getDOFsOffset` methods and the Pinocchio's DOF serialization, obtained from  `pinocchio::ModelTpl::idx_qs` and `pinocchio::ModelTpl::idx_vs` attributes. 
+
