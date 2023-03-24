@@ -318,7 +318,7 @@ public:
             break;
         };
 
-        pinocchio::FrameIndex jointFrameId = model.addJointFrame(jointId, (int)parentFrameId);
+        pinocchio::FrameIndex jointFrameId = model.addJointFrame(jointId, static_cast<int>(parentFrameId));
         appendBodyToJoint(jointFrameId, Y, joint_H_child, bodyName);
     }
 
