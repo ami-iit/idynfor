@@ -12,15 +12,18 @@
 #include <iDynTree/Core/TestUtils.h>
 #include <iDynTree/Model/ModelTestUtils.h>
 
+#include "LocalModelTestUtils.h"
+
 TEST_CASE("KinDynComputations")
 {
     // Seed the random generator used by iDynTree
     srand(0);
 
-    for (size_t i = 0; i < 10; i++)
+    for (size_t i = 0; i < 100; i++)
     {
-        // For now just support 0-joint models with 0 additional frames
-        iDynTree::Model idynmodel = iDynTree::getRandomModel(0, 0);
+        size_t nrOfLinks = 10;
+        size_t nrOfAdditionalFrames = 10;
+        iDynTree::Model idynmodel = iDynFor_getRandomModel(nrOfLinks, nrOfAdditionalFrames);
 
         // Create both a new and and old KinDynComputations to check consistency
         iDynFor::iDynTreeFullyCompatible::KinDynComputations kinDynFor;
@@ -31,7 +34,8 @@ TEST_CASE("KinDynComputations")
         REQUIRE(!kinDynFor.isValid());
 
         REQUIRE(kinDynTree.loadRobotModel(idynmodel));
-        REQUIRE(kinDynFor.loadRobotModel(idynmodel));
+        bool okLoad = kinDynFor.loadRobotModel(idynmodel);
+        REQUIRE(okLoad);
 
         // After calling loadRobotModel, isValid should return true
         REQUIRE(kinDynTree.isValid());
@@ -53,16 +57,12 @@ TEST_CASE("KinDynComputations")
             joint_vel.resize(idynmodel.getNrOfDOFs());
             iDynTree::getRandomVector(joint_pos);
             iDynTree::getRandomVector(joint_vel);
-
             REQUIRE(
                 kinDynTree.setRobotState(world_H_base, joint_pos, base_vel, joint_vel, gravity));
             REQUIRE(kinDynFor.setRobotState(world_H_base, joint_pos, base_vel, joint_vel, gravity));
 
-            // TODO : remove check when there are other frames
-            REQUIRE(idynmodel.getNrOfFrames() == 1);
-
             // Test frame-related methods
-            int nrOfFramesToTest = 3;
+            int nrOfFramesToTest = 20;
             for (int fr = 0; fr < nrOfFramesToTest; fr++)
             {
                 iDynTree::FrameIndex randomFrameIndex = rand() % idynmodel.getNrOfFrames();
@@ -76,6 +76,11 @@ TEST_CASE("KinDynComputations")
                     kinDynFor.getWorldTransform(randomFrameIndex).asHomogeneousTransform());
                 Eigen::Matrix4d worldTransformTree = iDynTree::toEigen(
                     kinDynTree.getWorldTransform(randomFrameIndex).asHomogeneousTransform());
+
+                // Uncomment for debug
+                // std::cerr << "WorldTransform of " <<
+                // kinDynFor.model().getFrameName(randomFrameIndex) << std::endl; std::cerr <<
+                // worldTransformFor << std::endl; std::cerr << worldTransformTree << std::endl;
 
                 REQUIRE(worldTransformFor.isApprox(worldTransformTree));
             }

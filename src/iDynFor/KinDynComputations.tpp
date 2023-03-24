@@ -55,9 +55,13 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
     Quaternions quaternion(m_world_H_base.rotation());
     m_pin_model_position.block(3, 0, 4, 1) = Eigen::Map<Vector4s>(quaternion.coeffs().data());
 
-    // The rest of the elements are the position of the internal joints, accounting for the
-    // difference in position coordinate serialization between iDynTree and Pinocchio
-    // TODO(traversaro) : handle this
+    // Set internal joint positions
+    for (size_t dof = 0; dof < m_idyntreeModel.getNrOfPosCoords(); dof++)
+    {
+        assert(m_idyntreeDOFOffset2PinocchioJointIndex[dof] >= 7);
+        assert(m_idyntreeDOFOffset2PinocchioJointIndex[dof] < m_pin_model_position.size());
+        m_pin_model_position[m_idyntreeDOFOffset2PinocchioJointIndex[dof]] = m_joint_pos[dof];
+    }
 
     return;
 }
@@ -71,9 +75,15 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
     bool verbose = true;
 
     // TODO: understand if we should catch exception and return bool?
-    iDynFor::buildPinocchioModelfromiDynTree<Scalar, Options, JointCollectionTpl>(m_idyntreeModel,
-                                                                                  m_pinModel,
-                                                                                  verbose);
+    m_modelLoaded = iDynFor::
+        buildPinocchioModelfromiDynTree<Scalar, Options, JointCollectionTpl>(m_idyntreeModel,
+                                                                             m_pinModel,
+                                                                             verbose);
+
+    if (!m_modelLoaded)
+    {
+        return false;
+    }
 
     m_pinData = pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>(m_pinModel);
 
@@ -81,7 +91,32 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
     m_pin_model_position.resize(m_pinModel.nq);
     m_pin_model_position.setZero();
 
-    return (m_modelLoaded = true);
+    // Build the map to convert iDynTree's DOFOffsets to pinocchio::JointIndex
+    m_idyntreeDOFOffset2PinocchioJointIndex.resize(m_idyntreeModel.getNrOfDOFs());
+
+    // The rest of the elements are the position of the internal joints, accounting for the
+    // difference in position coordinate serialization between iDynTree and Pinocchio
+    for (iDynTree::JointIndex jndIndex = 0; jndIndex < m_idyntreeModel.getNrOfJoints(); jndIndex++)
+    {
+        iDynTree::IJointConstPtr visitedJoint = m_idyntreeModel.getJoint(jndIndex);
+        // Note: we are relyng on the assumption (valid as of iDynTree 8.1.0) that all
+        // joints in iDynTree have either 0-dof and 1-dof
+        if (visitedJoint->getNrOfDOFs() != 0)
+        {
+            std::string jntName = m_idyntreeModel.getJointName(visitedJoint->getIndex());
+            if (!m_pinModel.existJointName(jntName))
+            {
+                return false;
+            }
+            size_t posCoordOffsetPinocchio
+                = m_pinModel.idx_qs[m_pinModel.getJointId(jntName)];
+            m_idyntreeDOFOffset2PinocchioJointIndex[visitedJoint->getPosCoordsOffset()]
+                = posCoordOffsetPinocchio;
+        }
+    }
+
+    m_modelLoaded = true;
+    return true;
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
@@ -112,6 +147,30 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setRobotState(
     const Vector3s& world_gravity)
 {
     this->invalidateCache();
+
+    if (joint_pos.size() != m_idyntreeModel.getNrOfPosCoords())
+    {
+        if (m_verbose)
+        {
+            std::cerr << "iDynFor::KinDynComputationsTpl wrong size of joint_pos argument "
+                         "(required: "
+                      << m_idyntreeModel.getNrOfPosCoords() << ", got: " << joint_pos.size() << ")"
+                      << std::endl;
+        }
+        return false;
+    }
+
+    if (joint_vel.size() != m_idyntreeModel.getNrOfDOFs())
+    {
+        if (m_verbose)
+        {
+            std::cerr << "iDynFor::KinDynComputationsTpl wrong size of joint_vel argument "
+                         "(required: "
+                      << m_idyntreeModel.getNrOfDOFs() << ", got: " << joint_vel.size() << ")"
+                      << std::endl;
+        }
+        return false;
+    }
 
     // Save pos
     m_world_H_base = world_H_base;
@@ -148,11 +207,6 @@ template <typename Scalar, int Options, template <typename, int> class JointColl
 bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getWorldTransform(
     const iDynTree::FrameIndex frameIndex, SE3s& world_H_frame)
 {
-    // TODO: implement frame different from the base one
-    iDynTree::reportErrorIf(frameIndex != 0,
-                            "iDynFor::KinDynComputationsTpl::getWorldTransform",
-                            "requested frame not supported");
-
     this->computeFwdKinematics();
 
     // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
