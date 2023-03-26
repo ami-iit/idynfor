@@ -9,6 +9,8 @@
 #include <memory>
 
 #include <iDynTree/Model/Model.h>
+// This header provides the iDynTree::FrameVelocityRepresentation enum
+#include <iDynTree/Model/FreeFloatingMatrices.h>
 
 namespace iDynFor
 {
@@ -39,6 +41,9 @@ public:
     bool loadRobotModel(const iDynTree::Model& model);
     bool isValid() const;
 
+    bool setFrameVelocityRepresentation(const iDynTree::FrameVelocityRepresentation frameVelRepr);
+    iDynTree::FrameVelocityRepresentation getFrameVelocityRepresentation() const;
+
     const iDynTree::Model& model() const;
     const iDynTree::Model& getRobotModel() const;
 
@@ -51,6 +56,11 @@ public:
     int getFrameIndex(const std::string& frameName) const;
     std::string getFrameName(const iDynTree::FrameIndex frameIndex) const;
     iDynTree::Transform getWorldTransform(const iDynTree::FrameIndex frameIndex);
+
+    iDynTree::Twist getFrameVel(const std::string& frameName);
+    bool getFrameVel(const std::string& frameName, iDynTree::Span<double> twist);
+    iDynTree::Twist getFrameVel(const iDynTree::FrameIndex frameIdx);
+    bool getFrameVel(const iDynTree::FrameIndex frameIdx, iDynTree::Span<double> twist);
 };
 
 } // namespace iDynTreeFullyCompatible

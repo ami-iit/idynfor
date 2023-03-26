@@ -10,6 +10,8 @@
 #include <vector>
 
 #include <iDynTree/Model/Model.h>
+// This header provides the iDynTree::FrameVelocityRepresentation enum
+#include <iDynTree/Model/FreeFloatingMatrices.h>
 
 // TODO: Should we include pinocchio types in the public API?
 // for now yes, as it simplifies implementation, in future
@@ -46,6 +48,8 @@ private:
 
     // iDynTree model
     iDynTree::Model m_idyntreeModel;
+    // iDynTree::FrameVelocityRepresentation used
+    iDynTree::FrameVelocityRepresentation m_frameVelRepr = iDynTree::MIXED_REPRESENTATION;
     // Pinocchio model
     pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> m_pinModel;
     // Pinocchio data
@@ -61,7 +65,7 @@ private:
     SE3s m_world_H_base;
     // Internal joint positions: s
     VectorXs m_joint_pos;
-    // Base Velocity: {}^B \mathrm{v}_{A,B}
+    // Base Velocity: {}^B \mathrm{v}_{A,B} with linear/angular serialization
     Vector6s m_base_velocity;
     // Internal joint velocities: \dot{s}
     VectorXs m_joint_vel;
@@ -73,20 +77,32 @@ private:
     // Base and internal joint position (q)
     VectorXs m_pin_model_position;
 
+    // Base and internal joint velocities
+    VectorXs m_pin_model_velocity;
+
     // Conversion-related quantities
-    std::vector<size_t> m_idyntreeDOFOffset2PinocchioJointIndex;
+    std::vector<size_t> m_idyntreeDOFOffset2PinocchioJointPosOffset;
+    std::vector<size_t> m_idyntreeDOFOffset2PinocchioJointVelOffset;
 
     // Enable printed error messages
     bool m_verbose = true;
 
     // Cache-related flags methods
     bool m_isFwdKinematicsUpdated = false;
+    bool m_areBiasAccelerationsUpdated = false;
 
     // Invalidate the cache of intermediate results (called by setRobotState)
     void invalidateCache();
 
     // Compute forward kinematics, if required
     void computeFwdKinematics();
+
+    // Convert 6D velocity from the input representation to the output representation
+    bool velocityRepresentationConversionToBody(
+        const Vector6s& inputVel,
+        const SE3s& inputPose,
+        const iDynTree::FrameVelocityRepresentation inputRepresentation,
+        Vector6s& outputVel);
 
     // Convert model state from iDynTree formalism to pinocchio formalism
     void convertModelStateFromiDynTreeToPinocchio();
@@ -132,6 +148,20 @@ public:
     const iDynTree::Model& getRobotModel() const;
 
     /**
+     * @brief Set the used FrameVelocityRepresentation.
+     *
+     * @remark See iDynTree::FrameVelocityRepresentation documenation for more details.
+     */
+    bool setFrameVelocityRepresentation(const iDynTree::FrameVelocityRepresentation);
+
+    /**
+     * @brief Get the used FrameVelocityRepresentation.
+     *
+     * @remark See iDynTree::FrameVelocityRepresentation documenation for more details.
+     */
+    iDynTree::FrameVelocityRepresentation getFrameVelocityRepresentation() const;
+
+    /**
      * Set the state for the robot (floating base)
      *
      * @param world_H_base  the homogeneous transformation that transforms position vectors
@@ -174,6 +204,17 @@ public:
      * @return true if all went well, false otherwise.
      */
     bool getWorldTransform(const iDynTree::FrameIndex frameIndex, SE3s& world_H_frame);
+
+    /**
+     * @name Methods to get frame velocity information given the current state.
+     */
+    //@{
+
+    /**
+     * Return the frame velocity, with the convention specified by getFrameVelocityRepresentation
+     * and linear/angular serialization.
+     */
+    bool getFrameVel(const iDynTree::FrameIndex frameIdx, Vector6s& frameVel);
 };
 
 } // namespace iDynFor

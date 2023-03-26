@@ -31,10 +31,51 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::computeFwdKinem
     this->convertModelStateFromiDynTreeToPinocchio();
 
     // Compute position and velocity kinematics
-    // TODO(traversaro): Swich to the four-parameters variant when we add support for velocities
-    pinocchio::forwardKinematics(m_pinModel, m_pinData, m_pin_model_position);
+    pinocchio::forwardKinematics(m_pinModel, m_pinData, m_pin_model_position, m_pin_model_velocity);
 
     this->m_isFwdKinematicsUpdated = true;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
+    velocityRepresentationConversionToBody(
+        const Vector6s& inputVel,
+        const SE3s& inputPose,
+        const iDynTree::FrameVelocityRepresentation inputRepresentation,
+        Vector6s& outputVel)
+{
+    // This handles the case BODY -> BODY
+    if (iDynTree::BODY_FIXED_REPRESENTATION == inputRepresentation)
+    {
+        outputVel = inputVel;
+    }
+
+    // MIXED -> BODY
+    // In this case, inputPose is {}^W H_F, inputVel is {}^{F[W]} v_{W,F}
+    // and outputVel is {}^{F} v_{W,F}
+    // So we need to compute
+    // {}^{F} v_{W,F} = {}^F X_{F[W]} {}^{F[W]} v_{W,F}
+    if (iDynTree::MIXED_REPRESENTATION == inputRepresentation)
+    {
+        SE3s representationTransform = SE3s::Identity();
+        representationTransform.rotation() = inputPose.inverse().rotation();
+        // TODO: avoid to pass via the explicit adjoint matrix
+        outputVel = representationTransform.toActionMatrix() * inputVel;
+    }
+
+    // INERTIAL -> BODY
+    // In this case, inputPose is W_H_F, inputVel is {}_{W} v_{W,F}
+    // and outputVel is {}_{F} v_{W,F}
+    // So we need to compute
+    // {}^{F} v_{W,F} = {}^F X_{W} {}^{W} v_{W,F}
+    if (iDynTree::INERTIAL_FIXED_REPRESENTATION == inputRepresentation)
+    {
+        SE3s representationTransform = inputPose.inverse();
+        // TODO: avoid to pass via the explicit adjoint matrix
+        outputVel = representationTransform.toActionMatrix() * inputVel;
+    }
+
+    return true;
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
@@ -44,7 +85,10 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
     typedef Eigen::Matrix<Scalar, 4, 1, Options> Vector4s;
     typedef Eigen::Quaternion<Scalar, Options> Quaternions;
 
+    ///////////////
     // Position
+    ///////////////
+
     // The initial three elements of the pinocchio q vector are the origin of the base frame
     // w.r.t. to the world frame, i.e. {}^A o_B \in \mathbb{R}^3
     m_pin_model_position.block(0, 0, 3, 1) = m_world_H_base.translation();
@@ -58,9 +102,29 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
     // Set internal joint positions
     for (size_t dof = 0; dof < m_idyntreeModel.getNrOfPosCoords(); dof++)
     {
-        assert(m_idyntreeDOFOffset2PinocchioJointIndex[dof] >= 7);
-        assert(m_idyntreeDOFOffset2PinocchioJointIndex[dof] < m_pin_model_position.size());
-        m_pin_model_position[m_idyntreeDOFOffset2PinocchioJointIndex[dof]] = m_joint_pos[dof];
+        assert(m_idyntreeDOFOffset2PinocchioJointPosOffset[dof] >= 7);
+        assert(m_idyntreeDOFOffset2PinocchioJointPosOffset[dof] < m_pin_model_position.size());
+        m_pin_model_position[m_idyntreeDOFOffset2PinocchioJointPosOffset[dof]] = m_joint_pos[dof];
+    }
+
+    ///////////////
+    // Velocity
+    ///////////////
+
+    // pinocchio uses always the body-fixed/left-trivialized representation for the base velocity,
+    // while iDynTree uses the representation specified by setFrameVelocityRepresentation (mixed by
+    // default)
+    Vector6s baseVelocityInBodyFixed;
+    velocityRepresentationConversionToBody(m_base_velocity,
+                                           m_world_H_base,
+                                           m_frameVelRepr,
+                                           baseVelocityInBodyFixed);
+    m_pin_model_velocity.block(0, 0, 6, 1) = baseVelocityInBodyFixed;
+
+    // Set internal joint positions
+    for (size_t dof = 0; dof < m_idyntreeModel.getNrOfDOFs(); dof++)
+    {
+        m_pin_model_velocity[m_idyntreeDOFOffset2PinocchioJointVelOffset[dof]] = m_joint_vel[dof];
     }
 
     return;
@@ -87,12 +151,15 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
 
     m_pinData = pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>(m_pinModel);
 
-    // Resize m_pin_model_position to right size
+    // Resize m_pin_model_position and m_pin_model_velocity to right size
     m_pin_model_position.resize(m_pinModel.nq);
     m_pin_model_position.setZero();
+    m_pin_model_velocity.resize(m_pinModel.nv);
+    m_pin_model_velocity.setZero();
 
-    // Build the map to convert iDynTree's DOFOffsets to pinocchio::JointIndex
-    m_idyntreeDOFOffset2PinocchioJointIndex.resize(m_idyntreeModel.getNrOfDOFs());
+    // Build the map to convert iDynTree indeces to Pinocchio indeces
+    m_idyntreeDOFOffset2PinocchioJointPosOffset.resize(m_idyntreeModel.getNrOfDOFs());
+    m_idyntreeDOFOffset2PinocchioJointVelOffset.resize(m_idyntreeModel.getNrOfDOFs());
 
     // The rest of the elements are the position of the internal joints, accounting for the
     // difference in position coordinate serialization between iDynTree and Pinocchio
@@ -108,10 +175,16 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
             {
                 return false;
             }
-            size_t posCoordOffsetPinocchio
-                = m_pinModel.idx_qs[m_pinModel.getJointId(jntName)];
-            m_idyntreeDOFOffset2PinocchioJointIndex[visitedJoint->getPosCoordsOffset()]
+
+            // Position
+            size_t posCoordOffsetPinocchio = m_pinModel.idx_qs[m_pinModel.getJointId(jntName)];
+            m_idyntreeDOFOffset2PinocchioJointPosOffset[visitedJoint->getPosCoordsOffset()]
                 = posCoordOffsetPinocchio;
+
+            // Velocity
+            size_t velocityOffsetPinocchio = m_pinModel.idx_vs[m_pinModel.getJointId(jntName)];
+            m_idyntreeDOFOffset2PinocchioJointVelOffset[visitedJoint->getDOFsOffset()]
+                = velocityOffsetPinocchio;
         }
     }
 
@@ -136,6 +209,41 @@ const iDynTree::Model&
 KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getRobotModel() const
 {
     return m_idyntreeModel;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+iDynTree::FrameVelocityRepresentation
+KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameVelocityRepresentation() const
+{
+    return m_frameVelRepr;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setFrameVelocityRepresentation(
+    const iDynTree::FrameVelocityRepresentation frameVelRepr)
+{
+    if (frameVelRepr != iDynTree::INERTIAL_FIXED_REPRESENTATION
+        && frameVelRepr != iDynTree::BODY_FIXED_REPRESENTATION
+        && frameVelRepr != iDynTree::MIXED_REPRESENTATION)
+    {
+        iDynTree::reportError("KinDynComputations",
+                              "setFrameVelocityRepresentation",
+                              "unknown frame velocity representation");
+        return false;
+    }
+
+    // If there is a change in FrameVelocityRepresentation, we should also invalidate the bias
+    // acceleration cache, as the bias acceleration depends on the frameVelRepr even if it is always
+    // expressed in body fixed representation. All the other cache are fine because they are always
+    // stored in BODY_FIXED, and they do not depend on the frameVelRepr, as they are converted on
+    // the fly when the relative retrieval method is called.
+    if (frameVelRepr != m_frameVelRepr)
+    {
+        m_areBiasAccelerationsUpdated = false;
+    }
+
+    m_frameVelRepr = frameVelRepr;
+    return true;
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
@@ -176,11 +284,12 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setRobotState(
     m_world_H_base = world_H_base;
     m_joint_pos = joint_pos;
 
-    // Save gravity
-    // TODO: implement
-
     // Save vel
-    // TODO
+    m_base_velocity = base_velocity;
+    m_joint_vel = joint_vel;
+
+    // Save gravity
+    m_world_gravity = world_gravity;
 
     return true;
 }
@@ -223,6 +332,26 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getWorldTransfo
     // TODO(traversaro): understand if it is worth to cache also this
     pinocchio::updateFramePlacement(m_pinModel, m_pinData, pinFrameIndex);
     world_H_frame = m_pinData.oMf[pinFrameIndex];
+
+    return true;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameVel(
+    const iDynTree::FrameIndex frameIndex, Vector6s& frameVel)
+{
+    this->computeFwdKinematics();
+
+    // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
+    // TODO(traversaro): cache this information, there is no need to do a string search every time
+    pinocchio::FrameIndex pinFrameIndex
+        = m_pinModel.getFrameId(m_idyntreeModel.getFrameName(frameIndex));
+
+    frameVel = pinocchio::getFrameVelocity(m_pinModel,
+                                           m_pinData,
+                                           pinFrameIndex,
+                                           toPinocchio(m_frameVelRepr))
+                   .toVector();
 
     return true;
 }

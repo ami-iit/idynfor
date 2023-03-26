@@ -37,6 +37,11 @@ TEST_CASE("KinDynComputations")
         bool okLoad = kinDynFor.loadRobotModel(idynmodel);
         REQUIRE(okLoad);
 
+        // Set random velocity representation
+        iDynTree::FrameVelocityRepresentation velRepr = iDynFor_getRandomVelocityRepresentation();
+        REQUIRE(kinDynTree.setFrameVelocityRepresentation(velRepr));
+        REQUIRE(kinDynFor.setFrameVelocityRepresentation(velRepr));
+
         // After calling loadRobotModel, isValid should return true
         REQUIRE(kinDynTree.isValid());
         REQUIRE(kinDynFor.isValid());
@@ -72,6 +77,7 @@ TEST_CASE("KinDynComputations")
                 REQUIRE(kinDynFor.getFrameIndex(frameName) == randomFrameIndex);
                 REQUIRE(kinDynFor.getFrameIndex(frameName) == kinDynTree.getFrameIndex(frameName));
 
+                // Test getWorldTransform
                 Eigen::Matrix4d worldTransformFor = iDynTree::toEigen(
                     kinDynFor.getWorldTransform(randomFrameIndex).asHomogeneousTransform());
                 Eigen::Matrix4d worldTransformTree = iDynTree::toEigen(
@@ -81,8 +87,14 @@ TEST_CASE("KinDynComputations")
                 // std::cerr << "WorldTransform of " <<
                 // kinDynFor.model().getFrameName(randomFrameIndex) << std::endl; std::cerr <<
                 // worldTransformFor << std::endl; std::cerr << worldTransformTree << std::endl;
-
                 REQUIRE(worldTransformFor.isApprox(worldTransformTree));
+
+                // Test getFrameVel
+                Eigen::Vector<double, 6> frameVelFor
+                    = iDynTree::toEigen(kinDynFor.getFrameVel(randomFrameIndex));
+                Eigen::Vector<double, 6> frameVelTree
+                    = iDynTree::toEigen(kinDynTree.getFrameVel(randomFrameIndex));
+                REQUIRE(frameVelFor.isApprox(frameVelTree));
             }
         }
     }

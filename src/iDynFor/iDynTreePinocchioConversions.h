@@ -22,6 +22,8 @@
 #include <iDynTree/Model/PrismaticJoint.h>
 #include <iDynTree/Model/RevoluteJoint.h>
 #include <iDynTree/Model/Traversal.h>
+// This header provides the iDynTree::FrameVelocityRepresentation enum
+#include <iDynTree/Model/FreeFloatingMatrices.h>
 
 namespace iDynFor
 {
@@ -318,7 +320,8 @@ public:
             break;
         };
 
-        pinocchio::FrameIndex jointFrameId = model.addJointFrame(jointId, static_cast<int>(parentFrameId));
+        pinocchio::FrameIndex jointFrameId
+            = model.addJointFrame(jointId, static_cast<int>(parentFrameId));
         appendBodyToJoint(jointFrameId, Y, joint_H_child, bodyName);
     }
 
@@ -361,6 +364,27 @@ iDynTree::Transform fromPinocchio(const pinocchio::SE3& se3_pinocchio);
  * Convert an iDynTree::SpatialInertia to a pinocchio::Inertia
  */
 pinocchio::Inertia toPinocchio(const iDynTree::SpatialInertia& inertiaIDynTree);
+
+/**
+ * Convert an iDynTree::FrameVelocityRepresentation to a pinocchio::ReferenceFrame
+ */
+inline pinocchio::ReferenceFrame
+toPinocchio(const iDynTree::FrameVelocityRepresentation frameVelRepr)
+{
+    switch (frameVelRepr)
+    {
+    case iDynTree::INERTIAL_FIXED_REPRESENTATION:
+        return pinocchio::WORLD;
+    case iDynTree::BODY_FIXED_REPRESENTATION:
+        return pinocchio::LOCAL;
+    case iDynTree::MIXED_REPRESENTATION:
+        return pinocchio::LOCAL_WORLD_ALIGNED;
+    }
+
+    // Avoid warnings
+    assert(false);
+    return pinocchio::LOCAL_WORLD_ALIGNED;
+}
 
 // We vendor here the construction of the traversal as apparently:
 // * Pinocchio requires that models are built in a strictly Depth First order
