@@ -163,14 +163,13 @@ $$
 
 The $P$ matrix can be computed by matching iDynTree's DOF serialization, obtained from the `iDynTree::IJoint::getPosCoordsOffset` and `iDynTree::IJoint::getDOFsOffset` methods and the Pinocchio's DOF serialization, obtained from  `pinocchio::ModelTpl::idx_qs` and `pinocchio::ModelTpl::idx_vs` attributes.
 
-### Model Velocity
-
-#### Rigid Body Velocity
+### Rigid Body Velocity
 
 Before discussing how iDynTree and pinocchio describe the velocity of a multi-body model,
 we need to briefly discuss how the velocity of a rigid body can be represented.
 
 Given two frames $A$ and $B$, the relative pose between this two frames is mathematically represented by an element ${}^A H_B \in SE(3)$ defined as:
+
 $$
 {}^A H_B =
 \begin{bmatrix}
@@ -186,7 +185,50 @@ The one commonly used in robotics and multi-body dynamics are:
 
 |           `iDynTree`          |     `Pinocchio`     |   Math      |
 |:-----------------------------:|:-------------------:|:-----------:|
-|      `MIXED_REPRESENTATION`     | `LOCAL_WORLD_ALIGNED` | $({}^A \dot{o}_B, ({}^A \dot{R}_B {}^A R_B^T)^\vee)$ .  |
-| `INERTIAL_FIXED_REPRESENTATION` |        `WORLD`        | $({}^A \dot{o}_B - ({}^A \dot{R}_B {}^A R_B^T) {}^A \dot{o}_B , ({}^A \dot{R}_B {}^A R_B^T)^\vee)$  . |
-|   `BODY_FIXED_REPRESENTATION`   |        `LOCAL`        | $({}^A R_B^T {}^A \dot{o}_B , ({}^A \dot{R}_B {}^A R_B^T)^\vee)$ . |
+|      `MIXED_REPRESENTATION`     | `LOCAL_WORLD_ALIGNED` | ${}^{B[A]} \mathrm{v} = ({}^A \dot{o}_B, ({}^A \dot{R}_B {}^A R_B^T)^\vee)$ .  |
+| `INERTIAL_FIXED_REPRESENTATION` |        `WORLD`        | ${}^{A} \mathrm{v} = ({}^A \dot{o}_B - ({}^A \dot{R}_B {}^A R_B^T) {}^A \dot{o}_B , ({}^A \dot{R}_B {}^A R_B^T)^\vee)$  . |
+|  `BODY_FIXED_REPRESENTATION`   |        `LOCAL`        | ${}^{B} \mathrm{v} = ({}^A R_B^T {}^A \dot{o}_B , ({}^A \dot{R}_B {}^A R_B^T)^\vee)$ . |
+
+Sources and derivation for the equations:
+* `MIXED_REPRESENTATION` Eq. 35 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2 
+* `INERTIAL_FIXED_REPRESENTATION` Eq. 23 in https://research.tue.nl/en/publications/multibody-dynamics-notation-ve that instead uses angular/linear.rsion-2 
+* `BODY_FIXED_REPRESENTATION` Eq. 18 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2 
+
+Related Pinocchio issues:
+* https://github.com/stack-of-tasks/pinocchio/issues/1624
+* https://github.com/stack-of-tasks/pinocchio/issues/1336
+
+Both iDynTree and pinocchio offer support for all the three velocity representation, even if in different ways. 
+iDynTree defaults to the `MIXED_REPRESENTATION`/`LOCAL_WORLD_ALIGNED`, while pinocchio to `BODY_FIXED_REPRESENTATION`/`LOCAL`. 
+Both iDynTree and pinocchio use the linear/angular velocity for serialization of 6D velocity, differently from Featherstone book "Rigid Body Dynamics Algorithms" that instead uses angular/linear.
+Both iDynTree and pinocchio support changing the quantity representation used for getting frame velocity or jacobians, but the main different is that
+for pinocchio the base velocity is always expressed in `LOCAL`, while in iDynTree when ones changes the representation used for frame velocity or jacobians,
+it also changes the representation used for the base velocity.
+
+### Model Velocity
+
+Both in iDynTree and in pinocchio, the model velocity are represented by a $\mathbb{R}^{6+dof}$ vector, that we will call $\nu^{pin}$ and $\nu^{idyn}$.
+
+To convert the base part of the velocity from iDynTree to pinocchio, we need to consider that in the case of pinocchio the base velocity is always expressed in   `BODY_FIXED_REPRESENTATION`/`LOCAL` (i.e. $B$), while in iDynTree is expressed in a different frame depending on the `FrameVelocityRepresentation`  set in `iDynTree::KinDynComputations`, i.e. $B[A]$ for  `MIXED_REPRESENTATION` , $A$ for  `INERTIAL_FIXED_REPRESENTATION` and $B$ for `BODY_FIXED_REPRESENTATION`. So if we call the frame representation used by iDynTree $W$ we have that:
+
+$$
+\nu^{pin}[1:6] = {}^B X_W \nu^{idyn}[1:6]
+$$
+
+while for the internal joints, we need to remap the joints exactly with the same permutation matrix used at the position level:
+
+$$
+\nu^{pin}[7:end] = P \nu^{idyn}[7:end]
+$$
+
+So the complete transform matrix to go from iDynTree model velocity to pinocchio model velocity:
+
+$$
+\nu^{pin} 
+= \begin{bmatrix}
+{}^B X_W & 0_{6 \times dof} \\\\
+0_{dof \times 6} & P
+\end{bmatrix}
+\nu^{idyn}
+$$
 
