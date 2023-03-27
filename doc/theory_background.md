@@ -130,7 +130,7 @@ $$
 $$
 
 $$
-{}^J H_D = {}^{o^{axis} [D]} H_D = {}^{o^{axis}[D]} H_D = \begin{bmatrix} I_3 & -{}^D o^{axis} \\\\ 0_{3 \times 1}  & 1 \end{bmatrix} 
+{}^J H_D = {}^{o^{axis} [D]} H_D = {}^{o^{axis}[D]} H_D = \begin{bmatrix} I_3 & -{}^D o^{axis} \\\\ 0_{3 \times 1}  & 1 \end{bmatrix}
 $$
 
 $$
@@ -158,8 +158,35 @@ For what regards the internal joint positions, for both Pinocchio and iDynTree t
 **serialization** of this elements. In the iDynTree case, the DOF serialization can be arbitrary. For example, when loading a model the desired serialization can be passed as the `consideredJoints` arguments of `iDynTree::ModelLoader::loadReducedModelFromFullModel` or `iDynTree::ModelLoader::loadReducedModelFromFile` methods. In the pinocchio case, the joint serialization **must** follow a strict depth-first order induced by the kinematic structure of the model an the selected floating base. To go from iDynTree's $s$ to Pinocchio's $q[7:end]$, we need to define an appropriate [permutation matrix](https://en.wikipedia.org/wiki/Permutation_matrix) $P \in \mathbb{R}^{dof \times dof}$:
 
 $$
-q[7:end] = P s 
+q[7:end] = P s
 $$
 
-The $P$ matrix can be computed by matching iDynTree's DOF serialization, obtained from the `iDynTree::IJoint::getPosCoordsOffset` and `iDynTree::IJoint::getDOFsOffset` methods and the Pinocchio's DOF serialization, obtained from  `pinocchio::ModelTpl::idx_qs` and `pinocchio::ModelTpl::idx_vs` attributes. 
+The $P$ matrix can be computed by matching iDynTree's DOF serialization, obtained from the `iDynTree::IJoint::getPosCoordsOffset` and `iDynTree::IJoint::getDOFsOffset` methods and the Pinocchio's DOF serialization, obtained from  `pinocchio::ModelTpl::idx_qs` and `pinocchio::ModelTpl::idx_vs` attributes.
+
+### Model Velocity
+
+#### Rigid Body Velocity
+
+Before discussing how iDynTree and pinocchio describe the velocity of a multi-body model,
+we need to briefly discuss how the velocity of a rigid body can be represented.
+
+Given two frames $A$ and $B$, the relative pose between this two frames is mathematically represented by an element ${}^A H_B \in SE(3)$ defined as:
+$$
+{}^A H_B =
+\begin{bmatrix}
+{}^A R_B & {}^A o_B \\
+0_{3\times1} & 1
+\end{bmatrix}
+$$
+
+This mathematical objects are represented in pinocchio by `pinocchio::SE3Tpl`  and in iDynTree by `iDynTree::Transform`. The time derivative of the pose ${}^A H_B$ is represented by ${}^A \dot{H}_B$, but for compactiness tipically alternative representation in the form of 6D vectors are used.
+
+The one commonly used in robotics and multi-body dynamics are:
+
+
+|           `iDynTree`          |     `Pinocchio`     |   Math      |
+|:-----------------------------:|:-------------------:|:-----------:|
+|      `MIXED_REPRESENTATION`     | `LOCAL_WORLD_ALIGNED` | $({}^A \dot{o}_B, ({}^A \dot{R}_B {}^A R_B^T)^\vee)$ .  |
+| `INERTIAL_FIXED_REPRESENTATION` |        `WORLD`        | $({}^A \dot{o}_B - ({}^A \dot{R}_B {}^A R_B^T) {}^A \dot{o}_B , ({}^A \dot{R}_B {}^A R_B^T)^\vee)$  . |
+|   `BODY_FIXED_REPRESENTATION`   |        `LOCAL`        | $({}^A R_B^T {}^A \dot{o}_B , ({}^A \dot{R}_B {}^A R_B^T)^\vee)$ . |
 
