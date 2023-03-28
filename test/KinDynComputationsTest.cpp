@@ -94,7 +94,22 @@ TEST_CASE("KinDynComputations")
                     = iDynTree::toEigen(kinDynFor.getFrameVel(randomFrameIndex));
                 Eigen::Vector<double, 6> frameVelTree
                     = iDynTree::toEigen(kinDynTree.getFrameVel(randomFrameIndex));
+                std::cerr << "frameVelFor" << frameVelFor << std::endl;
+                std::cerr << "frameVelTree" << frameVelTree << std::endl;
                 REQUIRE(frameVelFor.isApprox(frameVelTree));
+
+
+                // Test getFrameFreeFloatingJacobian
+                /*
+                Eigen::MatrixXd jacobianFor(6, 6+idynmodel.getNrOfDOFs());
+                Eigen::MatrixXd jacobianTree(6, 6+idynmodel.getNrOfDOFs());
+                REQUIRE(kinDynFor.getFrameFreeFloatingJacobian(
+                    randomFrameIndex, iDynTree::make_matrix_view(jacobianFor)));
+                REQUIRE(kinDynTree.getFrameFreeFloatingJacobian(
+                    randomFrameIndex, iDynTree::make_matrix_view(jacobianTree)));
+                REQUIRE(jacobianFor.isApprox(jacobianTree));*/
+
+
             }
         }
     }

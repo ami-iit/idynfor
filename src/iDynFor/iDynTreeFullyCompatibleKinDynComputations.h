@@ -61,6 +61,15 @@ public:
     bool getFrameVel(const std::string& frameName, iDynTree::Span<double> twist);
     iDynTree::Twist getFrameVel(const iDynTree::FrameIndex frameIdx);
     bool getFrameVel(const iDynTree::FrameIndex frameIdx, iDynTree::Span<double> twist);
+
+    bool getFrameFreeFloatingJacobian(const std::string & frameName,
+                                      iDynTree::MatrixDynSize & outJacobian);
+    bool getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex,
+                                      iDynTree::MatrixDynSize & outJacobian);
+    bool getFrameFreeFloatingJacobian(const std::string & frameName,
+                                      iDynTree::MatrixView<double> outJacobian);
+    bool getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex,
+                                      iDynTree::MatrixView<double> outJacobian);
 };
 
 } // namespace iDynTreeFullyCompatible

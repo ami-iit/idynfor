@@ -11,14 +11,14 @@ data-structures and interfaces, and provide a reference for the implementation i
 In `iDynTree::Model` a multibody is composed by its links that are interconnected by joints.
 Each link is connected to another link by a joint, so you can't attach a joint to another joint
 without having a link in the middle. Furthermore, `iDynTree::Model` consider all models to be
-floating base by default, so there is no "joint" connecting the base to "universe" or "world" frame. 
+floating base by default, so there is no "joint" connecting the base to "universe" or "world" frame.
 Only links have a frame w.r.t. to which you can compute forward kinematics or the jacobian, while there is no explicit concept of "joint frame"
 
 On the other hand, in `pinocchio::Model` joints are interconnected to each other, to build
-the so-called "kinematic tree". So multiple joints can be connected to each other, without having 
+the so-called "kinematic tree". So multiple joints can be connected to each other, without having
 a body in the middle. Furthermore, each link must have a parent joint, even if it is the first body of the kinematic tree.
 So, an empty pinocchio model contains always the `universe` link, and the parent joint of the `universe` link.
-The rest of the model can be connected to the `universe` reference frame with any kind of frame, but for consistency 
+The rest of the model can be connected to the `universe` reference frame with any kind of frame, but for consistency
 with `iDynTree` the pinocchio models built in `iDynFor` are always connected to "universe" with a `pinocchio::JointFreeFlyer` (i.e. 6-DOF joint).
 
 For these reasons, the count of links and joints in `iDynTree::Model` and  `pinocchio::Model` are different.
@@ -190,15 +190,15 @@ The one commonly used in robotics and multi-body dynamics are:
 |  `BODY_FIXED_REPRESENTATION`   |        `LOCAL`        | ${}^{B} \mathrm{v} = ({}^A R_B^T {}^A \dot{o}_B , ({}^A \dot{R}_B {}^A R_B^T)^\vee)$ . |
 
 Sources and derivation for the equations:
-* `MIXED_REPRESENTATION` Eq. 35 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2 
-* `INERTIAL_FIXED_REPRESENTATION` Eq. 23 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2 
-* `BODY_FIXED_REPRESENTATION` Eq. 18 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2 
+* `MIXED_REPRESENTATION` Eq. 35 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2
+* `INERTIAL_FIXED_REPRESENTATION` Eq. 23 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2
+* `BODY_FIXED_REPRESENTATION` Eq. 18 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2
 
 Related Pinocchio issues:
 * https://github.com/stack-of-tasks/pinocchio/issues/1624
 * https://github.com/stack-of-tasks/pinocchio/issues/1336
 
-Both iDynTree and pinocchio offer support for all the three velocity representations, even if in different ways. 
+Both iDynTree and pinocchio offer support for all the three velocity representations, even if in different ways.
 iDynTree defaults to the `MIXED_REPRESENTATION`/`LOCAL_WORLD_ALIGNED`, while pinocchio to `BODY_FIXED_REPRESENTATION`/`LOCAL`. 
 Both iDynTree and pinocchio use the linear/angular velocity for serialization of 6D velocity, differently from Featherstone book "Rigid Body Dynamics Algorithms" that instead uses angular/linear.
 Both iDynTree and pinocchio support changing the quantity representation used for getting frame velocity or jacobians, but the main different is that
@@ -212,7 +212,7 @@ Both in iDynTree and in pinocchio, the model velocity are represented by a $\mat
 To convert the base part of the velocity from iDynTree to pinocchio, we need to consider that in the case of pinocchio the base velocity is always expressed in   `BODY_FIXED_REPRESENTATION`/`LOCAL` (i.e. $B$), while in iDynTree is expressed in a different frame depending on the `FrameVelocityRepresentation`  set in `iDynTree::KinDynComputations`, i.e. $B[A]$ for  `MIXED_REPRESENTATION` , $A$ for  `INERTIAL_FIXED_REPRESENTATION` and $B$ for `BODY_FIXED_REPRESENTATION`. So if we call the frame representation used by iDynTree $W$ we have that:
 
 $$
-\nu^{pin}[1:6] = {}^B X_W \nu^{idyn}[1:6]
+\nu^{pin}[1:6] = {}^B X_{velReprFrame} \nu^{idyn}[1:6]
 $$
 
 while for the internal joints, we need to remap the joints exactly with the same permutation matrix used at the position level:
@@ -224,11 +224,48 @@ $$
 So the complete transform matrix to go from iDynTree model velocity to pinocchio model velocity:
 
 $$
-\nu^{pin} 
+\nu^{pin}
 = \begin{bmatrix}
-{}^B X_W & 0_{6 \times dof} \\\\
+{}^B X_{velReprFrame} & 0_{6 \times dof} \\\\
 0_{dof \times 6} & P
 \end{bmatrix}
 \nu^{idyn}
 $$
 
+
+
+### Jacobians
+
+Pinocchio can compute out of the box Jacobians that when moltiplied by $\nu^{pin}$ return the 6D
+velocity expressed with desired velocity representation. However, to transform this in Jacobians
+that can be multiplied by $\nu^{idyn}$ we need to transform approprately, i.e.:
+
+$$
+J^{pin} \nu^{pin} = J^{pin} \begin{bmatrix}
+{}^B X_{velReprFrame} & 0_{6 \times dof} \\\\
+0_{dof \times 6} & P
+\end{bmatrix}
+\nu^{idyn}
+= J^{idyn} \nu^{idyn}
+$$
+
+So we have that:
+
+$$
+J^{idyn}
+=
+J^{pin} \begin{bmatrix}
+{}^B X_{velReprFrame} & 0_{6 \times dof} \\\\
+0_{dof \times 6} & P
+\end{bmatrix}
+$$
+
+Dividing the Jacobian in base and joint parts, this transformation can be expressed as:
+
+$$
+J^{idyn}_{base} = J^{pin}_{base} {}^B X_W
+$$
+
+$$
+J^{idyn}_{joint} = J^{pin}_{joint} P
+$$

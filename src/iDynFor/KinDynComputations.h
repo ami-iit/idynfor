@@ -40,8 +40,10 @@ struct KinDynComputationsTpl
 public:
     typedef pinocchio::SE3Tpl<Scalar, Options> SE3s;
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1, Options> VectorXs;
+    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Options> MatrixXs;
     typedef Eigen::Matrix<Scalar, 3, 1, Options> Vector3s;
     typedef Eigen::Matrix<Scalar, 6, 1, Options> Vector6s;
+    typedef Eigen::Matrix<Scalar, 6, Eigen::Dynamic, Options> Matrix6Xs;
 
 private:
     // Internal Class State
@@ -83,6 +85,8 @@ private:
     // Conversion-related quantities
     std::vector<size_t> m_idyntreeDOFOffset2PinocchioJointPosOffset;
     std::vector<size_t> m_idyntreeDOFOffset2PinocchioJointVelOffset;
+    // Permutation matrix, see "Model Position" section of doc/theory_background.md
+    Eigen::PermutationMatrix<Eigen::Dynamic> m_pinocchio_P_idyntree;
 
     // Enable printed error messages
     bool m_verbose = true;
@@ -91,21 +95,30 @@ private:
     bool m_isFwdKinematicsUpdated = false;
     bool m_areBiasAccelerationsUpdated = false;
 
+    // Buffer for Jacobian-shaped quantities
+    Matrix6Xs m_bufJacobian;
+
     // Invalidate the cache of intermediate results (called by setRobotState)
     void invalidateCache();
 
     // Compute forward kinematics, if required
     void computeFwdKinematics();
 
-    // Convert 6D velocity from the input representation to the output representation
-    bool velocityRepresentationConversionToBody(
-        const Vector6s& inputVel,
-        const SE3s& inputPose,
-        const iDynTree::FrameVelocityRepresentation inputRepresentation,
-        Vector6s& outputVel);
+    // Get B_H_velReprFrame transform, where B is the base frame,
+    // A is the absolute/world/universe frame and velReprFrame is:
+    // velReprFrame = B[A] if m_frameVelRepr == iDynTree::MIXED_REPRESENTATION
+    // velReprFrame = B if m_frameVelRepr == iDynTree::BODY_FIXED_REPRESENTATION
+    // velReprFrame = A if m_frameVelRepr == iDynTree::INERTIAL_FIXED_REPRESENTATION
+    SE3s getBaseHVelReprFrameTransform();
+
+    Vector6s getBaseVelocityInBodyFixed();
 
     // Convert model state from iDynTree formalism to pinocchio formalism
     void convertModelStateFromiDynTreeToPinocchio();
+
+    // Convert left-side of a matrix from accepting Pinocchio velocity to accepting iDynTree velocities
+    void convertLeftSideOfMatrixFromPinocchioToiDynTree(const Matrix6Xs& pinocchioMatrixOnTheLeft,
+                                                        Matrix6Xs& idyntreeMatrixOnTheLeft);
 
 public:
     /**
@@ -178,7 +191,7 @@ public:
     bool setRobotState(const SE3s& world_H_base,
                        const VectorXs& s,
                        const Vector6s& base_velocity,
-                       const VectorXs& v,
+                       const VectorXs& s_dot,
                        const Vector3s& world_gravity);
 
     /**
@@ -215,6 +228,18 @@ public:
      * and linear/angular serialization.
      */
     bool getFrameVel(const iDynTree::FrameIndex frameIdx, Vector6s& frameVel);
+
+    /**
+     * Compute the free floating jacobian for a given frame with the convention specified by getFrameVelocityRepresentation.
+     *
+     * In particular, the matrix returned by this method, if moltiplied by the vector obtained stacking base_velocity and s_dot
+     * (setRobotState arguments), returns the output of getFrameVel.
+     *
+     * @return true if all went well, false otherwise.
+     */
+    bool getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex,
+                                      Matrix6Xs& outJacobian);
+
 };
 
 } // namespace iDynFor
