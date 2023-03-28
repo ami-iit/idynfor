@@ -1,6 +1,28 @@
 #ifndef IDYNFOR_LOCAL_MODEL_TEST_UTILS_H
 #define IDYNFOR_LOCAL_MODEL_TEST_UTILS_H
 
+#include <iDynTree/Model/Model.h>
+// This header provides the iDynTree::FrameVelocityRepresentation enum
+#include <iDynTree/Model/FreeFloatingMatrices.h>
+
+inline iDynTree::FrameVelocityRepresentation iDynFor_getRandomVelocityRepresentation()
+{
+    size_t representation = rand() % 3;
+    switch (representation)
+    {
+    case 0:
+        return iDynTree::INERTIAL_FIXED_REPRESENTATION;
+    case 1:
+        return iDynTree::BODY_FIXED_REPRESENTATION;
+    case 2:
+        return iDynTree::MIXED_REPRESENTATION;
+    }
+
+    // Just to avoid warnings
+    assert(false);
+    return iDynTree::MIXED_REPRESENTATION;
+}
+
 // Functions vendored from
 // https://github.com/robotology/idyntree/blob/4e9d8097753dc146914e55f5656b465d00e6b25f/src/model/include/iDynTree/Model/ModelTestUtils.h#L118
 // As we currently need to customize them until iDynFor support all features of iDynTree::Model

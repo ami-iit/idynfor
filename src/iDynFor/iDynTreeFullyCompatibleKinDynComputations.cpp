@@ -38,6 +38,17 @@ bool KinDynComputations::isValid() const
     return m_pimpl->kindyn.isValid();
 }
 
+bool KinDynComputations::setFrameVelocityRepresentation(
+    const iDynTree::FrameVelocityRepresentation frameVelRepr)
+{
+    return m_pimpl->kindyn.setFrameVelocityRepresentation(frameVelRepr);
+}
+
+iDynTree::FrameVelocityRepresentation KinDynComputations::getFrameVelocityRepresentation() const
+{
+    return m_pimpl->kindyn.getFrameVelocityRepresentation();
+}
+
 const iDynTree::Model& KinDynComputations::model() const
 {
     return m_pimpl->kindyn.model();
@@ -54,17 +65,16 @@ bool KinDynComputations::setRobotState(const iDynTree::Transform& world_H_base,
                                        const iDynTree::VectorDynSize& s_dot,
                                        const iDynTree::Vector3& world_gravity)
 {
-    // TODO add handling of other arguments
-    Eigen::Matrix<double, 6, 1> dummy_twist;
-    Eigen::Matrix<double, 3, 1> dummy_vec3;
+    Eigen::Matrix<double, 6, 1> base_velocity_eig = iDynTree::toEigen(base_velocity);
+    Eigen::Matrix<double, 3, 1> world_gravity_eig = iDynTree::toEigen(world_gravity);
     m_pimpl->bufferJointPos = iDynTree::toEigen(s);
     m_pimpl->bufferJointVel = iDynTree::toEigen(s_dot);
 
     return m_pimpl->kindyn.setRobotState(toPinocchio(world_H_base),
                                          m_pimpl->bufferJointPos,
-                                         dummy_twist,
+                                         base_velocity_eig,
                                          m_pimpl->bufferJointVel,
-                                         dummy_vec3);
+                                         world_gravity_eig);
 }
 
 int KinDynComputations::getFrameIndex(const std::string& frameName) const
@@ -82,6 +92,41 @@ iDynTree::Transform KinDynComputations::getWorldTransform(const iDynTree::FrameI
     pinocchio::SE3 pinocchio_SE3;
     m_pimpl->kindyn.getWorldTransform(frameIndex, pinocchio_SE3);
     return fromPinocchio(pinocchio_SE3);
+}
+
+iDynTree::Twist KinDynComputations::getFrameVel(const std::string& frameName)
+{
+    return getFrameVel(getFrameIndex(frameName));
+}
+
+bool KinDynComputations::getFrameVel(const std::string& frameName, iDynTree::Span<double> twist)
+{
+    return getFrameVel(getFrameIndex(frameName), twist);
+}
+
+bool KinDynComputations::getFrameVel(const iDynTree::FrameIndex frameIdx,
+                                     iDynTree::Span<double> twist)
+{
+    constexpr int expected_twist_size = 6;
+    bool ok = twist.size() == expected_twist_size;
+    if (!ok)
+    {
+        iDynTree::reportError("KinDynComputations", "getFrameVel", "Wrong size in input twist");
+        return false;
+    }
+
+    iDynTree::toEigen(twist) = iDynTree::toEigen(getFrameVel(frameIdx));
+    return true;
+}
+
+iDynTree::Twist KinDynComputations::getFrameVel(const iDynTree::FrameIndex frameIndex)
+{
+    Eigen::Matrix<double, 6, 1> ret_twist;
+    iDynTree::Twist ret_twist_idyntree;
+    m_pimpl->kindyn.getFrameVel(frameIndex, ret_twist);
+    iDynTree::toEigen(ret_twist_idyntree.getLinearVec3()) = ret_twist.segment<3>(0);
+    iDynTree::toEigen(ret_twist_idyntree.getAngularVec3()) = ret_twist.segment<3>(3);
+    return ret_twist_idyntree;
 }
 
 } // namespace iDynTreeFullyCompatible
