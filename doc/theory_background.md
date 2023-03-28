@@ -252,8 +252,7 @@ $$
 So we have that:
 
 $$
-J^{idyn}
-=
+J^{idyn} =
 J^{pin} \begin{bmatrix}
 {}^B X_{velReprFrame} & 0_{6 \times dof} \\\\
 0_{dof \times 6} & P
