@@ -191,14 +191,14 @@ The one commonly used in robotics and multi-body dynamics are:
 
 Sources and derivation for the equations:
 * `MIXED_REPRESENTATION` Eq. 35 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2 
-* `INERTIAL_FIXED_REPRESENTATION` Eq. 23 in https://research.tue.nl/en/publications/multibody-dynamics-notation-ve that instead uses angular/linear.rsion-2 
+* `INERTIAL_FIXED_REPRESENTATION` Eq. 23 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2 
 * `BODY_FIXED_REPRESENTATION` Eq. 18 in https://research.tue.nl/en/publications/multibody-dynamics-notation-version-2 
 
 Related Pinocchio issues:
 * https://github.com/stack-of-tasks/pinocchio/issues/1624
 * https://github.com/stack-of-tasks/pinocchio/issues/1336
 
-Both iDynTree and pinocchio offer support for all the three velocity representation, even if in different ways. 
+Both iDynTree and pinocchio offer support for all the three velocity representations, even if in different ways. 
 iDynTree defaults to the `MIXED_REPRESENTATION`/`LOCAL_WORLD_ALIGNED`, while pinocchio to `BODY_FIXED_REPRESENTATION`/`LOCAL`. 
 Both iDynTree and pinocchio use the linear/angular velocity for serialization of 6D velocity, differently from Featherstone book "Rigid Body Dynamics Algorithms" that instead uses angular/linear.
 Both iDynTree and pinocchio support changing the quantity representation used for getting frame velocity or jacobians, but the main different is that

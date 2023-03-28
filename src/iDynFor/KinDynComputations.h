@@ -150,14 +150,14 @@ public:
     /**
      * @brief Set the used FrameVelocityRepresentation.
      *
-     * @remark See iDynTree::FrameVelocityRepresentation documenation for more details.
+     * @remark See iDynTree::FrameVelocityRepresentation documentation for more details.
      */
     bool setFrameVelocityRepresentation(const iDynTree::FrameVelocityRepresentation);
 
     /**
      * @brief Get the used FrameVelocityRepresentation.
      *
-     * @remark See iDynTree::FrameVelocityRepresentation documenation for more details.
+     * @remark See iDynTree::FrameVelocityRepresentation documentation for more details.
      */
     iDynTree::FrameVelocityRepresentation getFrameVelocityRepresentation() const;
 
