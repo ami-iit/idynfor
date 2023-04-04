@@ -37,45 +37,50 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::computeFwdKinem
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
-bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
-    velocityRepresentationConversionToBody(
-        const Vector6s& inputVel,
-        const SE3s& inputPose,
-        const iDynTree::FrameVelocityRepresentation inputRepresentation,
-        Vector6s& outputVel)
+typename KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::SE3s
+KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getBaseHVelReprFrameTransform()
 {
-    // This handles the case BODY -> BODY
-    if (iDynTree::BODY_FIXED_REPRESENTATION == inputRepresentation)
+    SE3s Base_H_VelReprFrame;
+    if (iDynTree::INERTIAL_FIXED_REPRESENTATION == m_frameVelRepr)
     {
-        outputVel = inputVel;
+        Base_H_VelReprFrame = m_world_H_base.inverse();
     }
 
-    // MIXED -> BODY
-    // In this case, inputPose is {}^W H_F, inputVel is {}^{F[W]} v_{W,F}
-    // and outputVel is {}^{F} v_{W,F}
-    // So we need to compute
-    // {}^{F} v_{W,F} = {}^F X_{F[W]} {}^{F[W]} v_{W,F}
-    if (iDynTree::MIXED_REPRESENTATION == inputRepresentation)
+    if (iDynTree::BODY_FIXED_REPRESENTATION == m_frameVelRepr)
     {
-        SE3s representationTransform = SE3s::Identity();
-        representationTransform.rotation() = inputPose.inverse().rotation();
-        // TODO: avoid to pass via the explicit adjoint matrix
-        outputVel = representationTransform.toActionMatrix() * inputVel;
+        Base_H_VelReprFrame = SE3s::Identity();
     }
 
-    // INERTIAL -> BODY
-    // In this case, inputPose is W_H_F, inputVel is {}_{W} v_{W,F}
-    // and outputVel is {}_{F} v_{W,F}
-    // So we need to compute
-    // {}^{F} v_{W,F} = {}^F X_{W} {}^{W} v_{W,F}
-    if (iDynTree::INERTIAL_FIXED_REPRESENTATION == inputRepresentation)
+    if (iDynTree::MIXED_REPRESENTATION == m_frameVelRepr)
     {
-        SE3s representationTransform = inputPose.inverse();
-        // TODO: avoid to pass via the explicit adjoint matrix
-        outputVel = representationTransform.toActionMatrix() * inputVel;
+        Base_H_VelReprFrame = SE3s::Identity();
+        Base_H_VelReprFrame.rotation() = m_world_H_base.inverse().rotation();
     }
 
-    return true;
+    return Base_H_VelReprFrame;
+}
+
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+typename KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::Vector6s
+KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
+    getBaseVelocityInBodyFixed()
+{
+    Vector6s base_velocity_in_base_body_fixed_representation;
+
+    // This handles the case BODY -> BODY that is easier
+    if (iDynTree::BODY_FIXED_REPRESENTATION == m_frameVelRepr)
+    {
+        base_velocity_in_base_body_fixed_representation = m_base_velocity;
+    }
+
+    if (iDynTree::MIXED_REPRESENTATION == m_frameVelRepr || iDynTree::INERTIAL_FIXED_REPRESENTATION == m_frameVelRepr)
+    {
+        SE3s representationTransform = getBaseHVelReprFrameTransform();
+        base_velocity_in_base_body_fixed_representation = representationTransform.toActionMatrix() * m_base_velocity;
+    }
+
+    return base_velocity_in_base_body_fixed_representation;
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
@@ -114,18 +119,34 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
     // pinocchio uses always the body-fixed/left-trivialized representation for the base velocity,
     // while iDynTree uses the representation specified by setFrameVelocityRepresentation (mixed by
     // default)
-    Vector6s baseVelocityInBodyFixed;
-    velocityRepresentationConversionToBody(m_base_velocity,
-                                           m_world_H_base,
-                                           m_frameVelRepr,
-                                           baseVelocityInBodyFixed);
-    m_pin_model_velocity.block(0, 0, 6, 1) = baseVelocityInBodyFixed;
+    m_pin_model_velocity.block(0, 0, 6, 1) = getBaseVelocityInBodyFixed();
+;
 
     // Set internal joint positions
     for (size_t dof = 0; dof < m_idyntreeModel.getNrOfDOFs(); dof++)
     {
         m_pin_model_velocity[m_idyntreeDOFOffset2PinocchioJointVelOffset[dof]] = m_joint_vel[dof];
     }
+
+    return;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
+     convertLeftSideOfMatrixFromPinocchioToiDynTree(const Matrix6Xs& pinocchioMatrixOnTheLeft,
+                                                          Matrix6Xs& idyntreeMatrixOnTheLeft)
+{
+    // See "Jacobians" section in doc/theory_background.md
+
+    // Base part
+    // J^{idyn}_{base} = J^{pin}_{base} {}^B X_velReprFrame
+    idyntreeMatrixOnTheLeft.leftCols(6) =
+        pinocchioMatrixOnTheLeft.leftCols(6)*getBaseHVelReprFrameTransform().toActionMatrix();
+
+    // Joint part
+    // J^{idyn}_{joint} = J^{pin}_{joint} P
+    idyntreeMatrixOnTheLeft.rightCols(m_idyntreeModel.getNrOfDOFs()) =
+        pinocchioMatrixOnTheLeft.rightCols(m_idyntreeModel.getNrOfDOFs()) * m_pinocchio_P_idyntree;
 
     return;
 }
@@ -187,6 +208,18 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
                 = velocityOffsetPinocchio;
         }
     }
+
+    // Create permutation matrix
+    m_pinocchio_P_idyntree.resize(m_idyntreeModel.getNrOfDOFs());
+    for(size_t i=0; i < m_idyntreeModel.getNrOfDOFs(); i++)
+    {
+        // The serialization should be consistent between position and velocities, but just keep an assert to be true
+        assert(m_idyntreeDOFOffset2PinocchioJointVelOffset[i]-6 == m_idyntreeDOFOffset2PinocchioJointPosOffset[i]-7);
+        m_pinocchio_P_idyntree.indices()[i] = m_idyntreeDOFOffset2PinocchioJointVelOffset[i]-6;
+    }
+
+    // Resize buffers
+    m_bufJacobian.resize(6, 6 + m_idyntreeModel.getNrOfDOFs());
 
     m_modelLoaded = true;
     return true;
@@ -355,5 +388,51 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameVel(
 
     return true;
 }
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex,
+                                      Matrix6Xs& outJacobian)
+{
+    if (!m_idyntreeModel.isValidFrameIndex(frameIndex))
+    {
+        iDynTree::reportError("iDynFor::KinDynComputationsTpl",
+                              "getFrameFreeFloatingJacobian","Frame index out of bounds");
+        return false;
+    }
+
+    bool ok = (outJacobian.rows() == 6)
+        && (outJacobian.cols() == m_idyntreeModel.getNrOfDOFs() + 6);
+
+    if (!ok)
+    {
+        iDynTree::reportError("iDynFor::KinDynComputationsTpl",
+                    "getFrameFreeFloatingJacobian",
+                    "Wrong size in input outJacobian");
+        return false;
+    }
+
+    this->computeFwdKinematics();
+
+    // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
+    // TODO(traversaro): cache this information, there is no need to do a string search every time
+    pinocchio::FrameIndex pinFrameIndex
+        = m_pinModel.getFrameId(m_idyntreeModel.getFrameName(frameIndex));
+
+    // Compute Jacobian that on left has the right representation (as we pass it via toPinocchio(m_frameVelRepr))
+    // but on the left accepts v^{pin} and not v^{idyn} (as defined in doc/theory_background.md)
+    m_bufJacobian.setZero();
+    pinocchio::computeFrameJacobian(m_pinModel,
+                                    m_pinData,
+                                    m_pin_model_position,
+                                    pinFrameIndex,
+                                    toPinocchio(m_frameVelRepr),
+                                    m_bufJacobian);
+
+    // Transform the left side from accepting v^{pin} to v^{idyn}
+    convertLeftSideOfMatrixFromPinocchioToiDynTree(m_bufJacobian, outJacobian);
+
+    return true;
+}
+
 
 } // namespace iDynFor

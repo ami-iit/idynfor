@@ -16,9 +16,9 @@ namespace iDynTreeFullyCompatible
 struct KinDynComputations::Impl
 {
     iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl> kindyn;
-    // Dummy
     Eigen::VectorXd bufferJointPos;
     Eigen::VectorXd bufferJointVel;
+    iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl>::Matrix6Xs bufferJacobian;
 };
 
 KinDynComputations::KinDynComputations()
@@ -69,6 +69,8 @@ bool KinDynComputations::setRobotState(const iDynTree::Transform& world_H_base,
     Eigen::Matrix<double, 3, 1> world_gravity_eig = iDynTree::toEigen(world_gravity);
     m_pimpl->bufferJointPos = iDynTree::toEigen(s);
     m_pimpl->bufferJointVel = iDynTree::toEigen(s_dot);
+    m_pimpl->bufferJacobian.resize(6, 6+s.size());
+
 
     return m_pimpl->kindyn.setRobotState(toPinocchio(world_H_base),
                                          m_pimpl->bufferJointPos,
@@ -127,6 +129,37 @@ iDynTree::Twist KinDynComputations::getFrameVel(const iDynTree::FrameIndex frame
     iDynTree::toEigen(ret_twist_idyntree.getLinearVec3()) = ret_twist.segment<3>(0);
     iDynTree::toEigen(ret_twist_idyntree.getAngularVec3()) = ret_twist.segment<3>(3);
     return ret_twist_idyntree;
+}
+
+bool KinDynComputations::getFrameFreeFloatingJacobian(const std::string & frameName,
+                                    iDynTree::MatrixDynSize & outJacobian)
+{
+    return getFrameFreeFloatingJacobian(getFrameIndex(frameName),outJacobian);
+}
+
+bool KinDynComputations::getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex,
+                                  iDynTree::MatrixDynSize & outJacobian)
+{
+    return getFrameFreeFloatingJacobian(frameIndex, iDynTree::MatrixView<double>(outJacobian));
+}
+
+bool KinDynComputations::getFrameFreeFloatingJacobian(const std::string & frameName,
+                                      iDynTree::MatrixView<double> outJacobian)
+{
+    return getFrameFreeFloatingJacobian(getFrameIndex(frameName),outJacobian);
+}
+
+bool KinDynComputations::getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex,
+                                      iDynTree::MatrixView<double> outJacobian)
+{
+    // We need to do a copy here to go from ColumnMajor to RowMajor
+    // TODO understand if we can avoid this, if I just passed iDynTree::toEigen(outJacobian) and change the
+    // bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameFreeFloatingJacobian signature to
+    // accept a Eigen::Ref or Eigen::Map, I get as errors
+    // /home/traversaro/idynfor/src/iDynFor/iDynTreeFullyCompatibleKinDynComputations.cpp:153:86: error: cannot convert 'Eigen::Map<Eigen::Matrix<double, -1, -1, 1>, 0, Eigen::Stride<-1, -1> >' to 'Eigen::Ref<Eigen::Matrix<double, -1, -1>, 0, Eigen::OuterStride<> >&'
+    bool ok = m_pimpl->kindyn.getFrameFreeFloatingJacobian(frameIndex, m_pimpl->bufferJacobian);
+    iDynTree::toEigen(outJacobian) = m_pimpl->bufferJacobian;
+    return ok;
 }
 
 } // namespace iDynTreeFullyCompatible
