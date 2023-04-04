@@ -238,7 +238,7 @@ $$
 
 Pinocchio can compute out of the box Jacobians that when moltiplied by $\nu^{pin}$ return the 6D
 velocity expressed with desired velocity representation. However, to transform this in Jacobians
-that can be multiplied by $\nu^{idyn}$ we need to transform approprately, i.e.:
+that can be multiplied by $\nu^{idyn}$ we need to transform appropriately, i.e.:
 
 $$
 J^{pin} \nu^{pin} = J^{pin} \begin{bmatrix}
