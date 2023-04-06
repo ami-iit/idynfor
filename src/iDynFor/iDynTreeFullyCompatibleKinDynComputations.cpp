@@ -17,6 +17,7 @@ struct KinDynComputations::Impl
 {
     iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl> kindyn;
     iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl>::Matrix6Xs bufferJacobian;
+    pinocchio::SE3 buffer_world_H_base;
 };
 
 KinDynComputations::KinDynComputations()
@@ -75,6 +76,27 @@ bool KinDynComputations::setRobotState(const iDynTree::Transform& world_H_base,
                                          iDynTree::toEigen(world_gravity));
 }
 
+void KinDynComputations::getRobotState(iDynTree::Transform& world_H_base,
+                                       iDynTree::VectorDynSize& s,
+                                       iDynTree::Twist& base_velocity,
+                                       iDynTree::VectorDynSize& s_dot,
+                                       iDynTree::Vector3& world_gravity) const
+{
+    Eigen::Matrix<double, 6, 1> base_velocity_eig;
+    s.resize(m_pimpl->kindyn.model().getNrOfDOFs());
+    s_dot.resize(m_pimpl->kindyn.model().getNrOfDOFs());
+
+    m_pimpl->kindyn.getRobotState(m_pimpl->buffer_world_H_base,
+                                  iDynTree::toEigen(s),
+                                  base_velocity_eig,
+                                  iDynTree::toEigen(s_dot),
+                                  iDynTree::toEigen(world_gravity));
+
+    // iDynTree and iDynFor share the same serialization
+    iDynTree::toEigen(base_velocity.getLinearVec3()) = base_velocity_eig.head<3>();
+    iDynTree::toEigen(base_velocity.getAngularVec3()) = base_velocity_eig.tail<3>();
+
+    world_H_base = fromPinocchio(m_pimpl->buffer_world_H_base);
 }
 
 int KinDynComputations::getFrameIndex(const std::string& frameName) const

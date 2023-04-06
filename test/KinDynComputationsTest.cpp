@@ -66,6 +66,23 @@ TEST_CASE("KinDynComputations")
                 kinDynTree.setRobotState(world_H_base, joint_pos, base_vel, joint_vel, gravity));
             REQUIRE(kinDynFor.setRobotState(world_H_base, joint_pos, base_vel, joint_vel, gravity));
 
+            iDynTree::Transform world_H_base_copy;
+            iDynTree::Twist base_vel_copy;
+            iDynTree::Vector3 gravity_copy;
+            iDynTree::VectorDynSize joint_pos_copy, joint_vel_copy;
+            kinDynFor.getRobotState(world_H_base_copy,
+                                    joint_pos_copy,
+                                    base_vel_copy,
+                                    joint_vel_copy,
+                                    gravity_copy);
+
+            REQUIRE(iDynTree::toEigen(world_H_base_copy.asHomogeneousTransform())
+                        .isApprox(iDynTree::toEigen(world_H_base.asHomogeneousTransform())));
+            REQUIRE(iDynTree::toEigen(joint_pos_copy).isApprox(iDynTree::toEigen(joint_pos)));
+            REQUIRE(iDynTree::toEigen(base_vel_copy).isApprox(iDynTree::toEigen(base_vel)));
+            REQUIRE(iDynTree::toEigen(joint_vel_copy).isApprox(iDynTree::toEigen(joint_vel)));
+            REQUIRE(iDynTree::toEigen(gravity_copy).isApprox(iDynTree::toEigen(gravity)));
+
             // Test frame-related methods
             int nrOfFramesToTest = 20;
             for (int fr = 0; fr < nrOfFramesToTest; fr++)

@@ -195,6 +195,39 @@ public:
                        const Eigen::Ref<const Vector3s>& world_gravity);
 
     /**
+     * Get the state for the robot (floating base)
+     *
+     * @param world_H_base  the homogeneous transformation that transforms position vectors
+     * expressed in the base reference frame in position frames expressed in the world reference
+     * frame (i.e. pos_world = world_H_base*pos_base .
+     * @param s a vector of getNrOfDegreesOfFreedom() joint positions (in rad)
+     * @param base_velocity The twist (linear/angular velocity) of the base, expressed with the
+     * convention specified by the used FrameVelocityConvention.
+     * @param s_dot a vector of getNrOfDegreesOfFreedom() joint velocities (in rad/sec)
+     * @param world_gravity a 3d vector of the gravity acceleration vector, expressed in the
+     * world/inertial frame.
+     * @return true if all went well, false otherwise.
+     */
+    bool getRobotState(SE3s& world_H_base,
+                       Eigen::Ref<VectorXs> s,
+                       Eigen::Ref<Vector6s> base_velocity,
+                       Eigen::Ref<VectorXs> s_dot,
+                       Eigen::Ref<Vector3s> world_gravity) const;
+
+    /**
+     * Get the state for the robot (floating base)
+     *
+     * @param s a vector of getNrOfDegreesOfFreedom() joint positions (in rad)
+     * @param s_dot a vector of getNrOfDegreesOfFreedom() joint velocities (in rad/sec)
+     * @param world_gravity a 3d vector of the gravity acceleration vector, expressed in the
+     * world/inertial frame.
+     * @return true if all went well, false otherwise.
+     */
+    bool getRobotState(Eigen::Ref<VectorXs> s,
+                       Eigen::Ref<VectorXs> s_dot,
+                       Eigen::Ref<Vector3s> world_gravity) const;
+
+    /**
      * Get the index corresponding to a given frame name.
      * @return a integer greater than or equal to zero if the frame exist,
      *         a negative integer otherwise.
