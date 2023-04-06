@@ -90,9 +90,9 @@ TEST_CASE("KinDynComputations")
                 REQUIRE(worldTransformFor.isApprox(worldTransformTree));
 
                 // Test getFrameVel
-                Eigen::Vector<double, 6> frameVelFor
+                Eigen::Matrix<double, 6, 1> frameVelFor
                     = iDynTree::toEigen(kinDynFor.getFrameVel(randomFrameIndex));
-                Eigen::Vector<double, 6> frameVelTree
+                Eigen::Matrix<double, 6, 1> frameVelTree
                     = iDynTree::toEigen(kinDynTree.getFrameVel(randomFrameIndex));
                 REQUIRE(frameVelFor.isApprox(frameVelTree));
 
