@@ -282,10 +282,10 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setFrameVelocit
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setRobotState(
     const SE3s& world_H_base,
-    const VectorXs& joint_pos,
-    const Vector6s& base_velocity,
-    const VectorXs& joint_vel,
-    const Vector3s& world_gravity)
+    const Eigen::Ref<const VectorXs>& joint_pos,
+    const Eigen::Ref<const Vector6s>& base_velocity,
+    const Eigen::Ref<const VectorXs>& joint_vel,
+    const Eigen::Ref<const Vector3s>& world_gravity)
 {
     this->invalidateCache();
 

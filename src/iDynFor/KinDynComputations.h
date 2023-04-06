@@ -189,10 +189,10 @@ public:
      * @return true if all went well, false otherwise.
      */
     bool setRobotState(const SE3s& world_H_base,
-                       const VectorXs& s,
-                       const Vector6s& base_velocity,
-                       const VectorXs& s_dot,
-                       const Vector3s& world_gravity);
+                       const Eigen::Ref<const VectorXs>& joint_pos,
+                       const Eigen::Ref<const Vector6s>& base_velocity,
+                       const Eigen::Ref<const VectorXs>& joint_vel,
+                       const Eigen::Ref<const Vector3s>& world_gravity);
 
     /**
      * Get the index corresponding to a given frame name.

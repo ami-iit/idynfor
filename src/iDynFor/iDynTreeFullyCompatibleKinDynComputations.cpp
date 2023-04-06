@@ -16,8 +16,6 @@ namespace iDynTreeFullyCompatible
 struct KinDynComputations::Impl
 {
     iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl> kindyn;
-    Eigen::VectorXd bufferJointPos;
-    Eigen::VectorXd bufferJointVel;
     iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl>::Matrix6Xs bufferJacobian;
 };
 
@@ -65,18 +63,18 @@ bool KinDynComputations::setRobotState(const iDynTree::Transform& world_H_base,
                                        const iDynTree::VectorDynSize& s_dot,
                                        const iDynTree::Vector3& world_gravity)
 {
+    // we cannot avoid to allocate memory since the linear and the angular components of a twist
+    // in iDynTree are not contiguous in space
     Eigen::Matrix<double, 6, 1> base_velocity_eig = iDynTree::toEigen(base_velocity);
-    Eigen::Matrix<double, 3, 1> world_gravity_eig = iDynTree::toEigen(world_gravity);
-    m_pimpl->bufferJointPos = iDynTree::toEigen(s);
-    m_pimpl->bufferJointVel = iDynTree::toEigen(s_dot);
-    m_pimpl->bufferJacobian.resize(6, 6+s.size());
-
+    m_pimpl->bufferJacobian.resize(6, 6 + s.size());
 
     return m_pimpl->kindyn.setRobotState(toPinocchio(world_H_base),
-                                         m_pimpl->bufferJointPos,
+                                         iDynTree::toEigen(s),
                                          base_velocity_eig,
-                                         m_pimpl->bufferJointVel,
-                                         world_gravity_eig);
+                                         iDynTree::toEigen(s_dot),
+                                         iDynTree::toEigen(world_gravity));
+}
+
 }
 
 int KinDynComputations::getFrameIndex(const std::string& frameName) const
