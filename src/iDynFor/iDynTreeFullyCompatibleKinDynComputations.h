@@ -53,6 +53,12 @@ public:
                        const iDynTree::VectorDynSize& s_dot,
                        const iDynTree::Vector3& world_gravity);
 
+    void getRobotState(iDynTree::Transform& world_T_base,
+                       iDynTree::VectorDynSize& s,
+                       iDynTree::Twist& base_velocity,
+                       iDynTree::VectorDynSize& s_dot,
+                       iDynTree::Vector3& world_gravity) const;
+
     int getFrameIndex(const std::string& frameName) const;
     std::string getFrameName(const iDynTree::FrameIndex frameIndex) const;
     iDynTree::Transform getWorldTransform(const iDynTree::FrameIndex frameIndex);

@@ -282,10 +282,10 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setFrameVelocit
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setRobotState(
     const SE3s& world_H_base,
-    const VectorXs& joint_pos,
-    const Vector6s& base_velocity,
-    const VectorXs& joint_vel,
-    const Vector3s& world_gravity)
+    const Eigen::Ref<const VectorXs>& joint_pos,
+    const Eigen::Ref<const Vector6s>& base_velocity,
+    const Eigen::Ref<const VectorXs>& joint_vel,
+    const Eigen::Ref<const Vector3s>& world_gravity)
 {
     this->invalidateCache();
 
@@ -323,6 +323,50 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setRobotState(
 
     // Save gravity
     m_world_gravity = world_gravity;
+
+    return true;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getRobotState(
+    SE3s& world_H_base,
+    Eigen::Ref<VectorXs> joint_pos,
+    Eigen::Ref<Vector6s> base_velocity,
+    Eigen::Ref<VectorXs> joint_vel,
+    Eigen::Ref<Vector3s> world_gravity) const
+{
+    world_H_base = m_world_H_base;
+    base_velocity = m_base_velocity;
+    return this->getRobotState(joint_pos, joint_vel, world_gravity);
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getRobotState(
+    Eigen::Ref<VectorXs> joint_pos,
+    Eigen::Ref<VectorXs> joint_vel,
+    Eigen::Ref<Vector3s> world_gravity) const
+{
+    if (joint_pos.size() != m_idyntreeModel.getNrOfDOFs())
+    {
+        std::cerr << "iDynFor::KinDynComputationsTpl wrong size of joint_pos argument "
+                     "(required: "
+                  << m_idyntreeModel.getNrOfDOFs() << ", got: " << joint_pos.size() << ")"
+                  << std::endl;
+        return false;
+    }
+
+    if (joint_vel.size() != m_idyntreeModel.getNrOfDOFs())
+    {
+        std::cerr << "iDynFor::KinDynComputationsTpl wrong size of joint_vel argument "
+                     "(required: "
+                  << m_idyntreeModel.getNrOfDOFs() << ", got: " << joint_vel.size() << ")"
+                  << std::endl;
+        return false;
+    }
+
+    joint_pos = m_joint_pos;
+    joint_vel = m_joint_vel;
+    world_gravity = m_world_gravity;
 
     return true;
 }
