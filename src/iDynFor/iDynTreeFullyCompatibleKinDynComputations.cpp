@@ -97,6 +97,25 @@ void KinDynComputations::getRobotState(iDynTree::Transform& world_H_base,
     world_H_base = fromPinocchio(m_pimpl->buffer_world_H_base);
 }
 
+bool KinDynComputations::setRobotAcceleration(const iDynTree::Vector6& baseAcc,
+                                              const iDynTree::VectorDynSize& s_ddot)
+{
+    return m_pimpl->kindyn.setRobotAcceleration(iDynTree::toEigen(baseAcc),
+                                                iDynTree::toEigen(s_ddot));
+}
+
+void KinDynComputations::getRobotAcceleration(iDynTree::Vector6& baseAcc,
+                                              iDynTree::VectorDynSize& s_ddot) const
+{
+    s_ddot.resize(m_pimpl->kindyn.model().getNrOfDOFs());
+
+    // We can do that with baseAcc because iDynTree and iDynFor share the same serialization
+    m_pimpl->kindyn.getRobotAcceleration(iDynTree::toEigen(baseAcc),
+                                         iDynTree::toEigen(s_ddot));
+
+    return;
+}
+
 int KinDynComputations::getFrameIndex(const std::string& frameName) const
 {
     return m_pimpl->kindyn.getFrameIndex(frameName);
@@ -179,6 +198,76 @@ bool KinDynComputations::getFrameFreeFloatingJacobian(const iDynTree::FrameIndex
     iDynTree::toEigen(outJacobian) = m_pimpl->bufferJacobian;
     return ok;
 }
+
+iDynTree::Vector6 KinDynComputations::getFrameAcc(const std::string & frameName)
+{
+    return getFrameAcc(getFrameIndex(frameName));
+}
+
+bool KinDynComputations::getFrameAcc(const std::string & frameName,
+                     iDynTree::Span<double> frame_acceleration)
+{
+    return getFrameAcc(getFrameIndex(frameName), frame_acceleration);
+}
+
+iDynTree::Vector6 KinDynComputations::getFrameAcc(const iDynTree::FrameIndex frameIdx)
+{
+    Eigen::Matrix<double, 6, 1> ret_acc;
+    iDynTree::Vector6 ret_acc_idyntree;
+    m_pimpl->kindyn.getFrameAcc(frameIdx, ret_acc);
+    iDynTree::toEigen(ret_acc_idyntree) = ret_acc;
+    return ret_acc_idyntree;
+}
+
+bool KinDynComputations::getFrameAcc(const iDynTree::FrameIndex frameIdx,
+                     iDynTree::Span<double> frame_acceleration)
+{
+    constexpr int expected_acc_size = 6;
+    bool ok = frame_acceleration.size() == expected_acc_size;
+    if (!ok)
+    {
+        iDynTree::reportError("KinDynComputations", "getFrameAcc", "Wrong size in input frame_acceleration");
+        return false;
+    }
+
+    iDynTree::toEigen(frame_acceleration) = iDynTree::toEigen(getFrameAcc(frameIdx));
+    return true;
+}
+
+iDynTree::Vector6 KinDynComputations::getFrameAcc(const std::string & frameName,
+                        const iDynTree::Vector6& baseAcc,
+                        const iDynTree::VectorDynSize& s_ddot)
+{
+    this->setRobotAcceleration(baseAcc, s_ddot);
+    return getFrameAcc(frameName);
+}
+
+bool KinDynComputations::getFrameAcc(const std::string & frameName,
+                     iDynTree::Span<const double> baseAcc,
+                     iDynTree::Span<const double> s_ddot,
+                     iDynTree::Span<double> frame_acceleration)
+{
+    this->setRobotAcceleration(baseAcc, s_ddot);
+    return getFrameAcc(frameName, frame_acceleration);
+}
+
+iDynTree::Vector6 KinDynComputations::getFrameAcc(const iDynTree::FrameIndex frameIdx,
+                        const iDynTree::Vector6& baseAcc,
+                        const iDynTree::VectorDynSize& s_ddot)
+{
+    this->setRobotAcceleration(baseAcc, s_ddot);
+    return getFrameAcc(frameIdx);
+}
+
+bool KinDynComputations::getFrameAcc(const iDynTree::FrameIndex frameName,
+                     iDynTree::Span<const double> baseAcc,
+                     iDynTree::Span<const double> s_ddot,
+                     iDynTree::Span<double> frame_acceleration)
+{
+    this->setRobotAcceleration(baseAcc, s_ddot);
+    return getFrameAcc(frameName, frame_acceleration);
+}
+
 
 } // namespace iDynTreeFullyCompatible
 } // namespace iDynFor

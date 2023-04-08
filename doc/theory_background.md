@@ -163,10 +163,10 @@ $$
 
 The $P$ matrix can be computed by matching iDynTree's DOF serialization, obtained from the `iDynTree::IJoint::getPosCoordsOffset` and `iDynTree::IJoint::getDOFsOffset` methods and the Pinocchio's DOF serialization, obtained from  `pinocchio::ModelTpl::idx_qs` and `pinocchio::ModelTpl::idx_vs` attributes.
 
-### Rigid Body Velocity
+### Frame Velocity
 
 Before discussing how iDynTree and pinocchio describe the velocity of a multi-body model,
-we need to briefly discuss how the velocity of a rigid body can be represented.
+we need to briefly discuss how the velocity of a frame attached to a rigid body can be represented.
 
 Given two frames $A$ and $B$, the relative pose between this two frames is mathematically represented by an element ${}^A H_B \in SE(3)$ defined as:
 
@@ -199,7 +199,7 @@ Related Pinocchio issues:
 * https://github.com/stack-of-tasks/pinocchio/issues/1336
 
 Both iDynTree and pinocchio offer support for all the three velocity representations, even if in different ways.
-iDynTree defaults to the `MIXED_REPRESENTATION`/`LOCAL_WORLD_ALIGNED`, while pinocchio to `BODY_FIXED_REPRESENTATION`/`LOCAL`. 
+iDynTree defaults to the `MIXED_REPRESENTATION`/`LOCAL_WORLD_ALIGNED`, while pinocchio to `BODY_FIXED_REPRESENTATION`/`LOCAL`.
 Both iDynTree and pinocchio use the linear/angular velocity for serialization of 6D velocity, differently from Featherstone book "Rigid Body Dynamics Algorithms" that instead uses angular/linear.
 Both iDynTree and pinocchio support changing the quantity representation used for getting frame velocity or jacobians, but the main different is that
 for pinocchio the base velocity is always expressed in `LOCAL`, while in iDynTree when ones changes the representation used for frame velocity or jacobians,
@@ -232,7 +232,17 @@ $$
 \nu^{idyn}
 $$
 
+For compactiness, in the rest of document we will indicate this matrix transorm as $$:
 
+$$
+{}^{pin} T {}^{idyn} =
+\begin{bmatrix}
+{}^B X_{velReprFrame} & 0_{6 \times dof} \\\\
+0_{dof \times 6} & P
+\end{bmatrix}
+$$
+
+When $T$ is used without any additional notation, we will be referring to ${}^{pin} T {}^{idyn}$.
 
 ### Jacobians
 
@@ -252,7 +262,7 @@ $$
 So we have that:
 
 $$
-J^{idyn} =
+J^{idyn} = J^{pin} T =
 J^{pin} \begin{bmatrix}
 {}^B X_{velReprFrame} & 0_{6 \times dof} \\\\
 0_{dof \times 6} & P
@@ -262,9 +272,176 @@ $$
 Dividing the Jacobian in base and joint parts, this transformation can be expressed as:
 
 $$
-J^{idyn}_{base} = J^{pin}_{base} {}^B X_W
+J^{idyn}\_{base} = J^{pin}\_{base} {}^B X_W
 $$
 
 $$
-J^{idyn}_{joint} = J^{pin}_{joint} P
+J^{idyn}\_{joint} = J^{pin}\_{joint} P
 $$
+
+### Model Acceleration
+
+Both in iDynTree and pinocchio, the model velocity is just defined as the time derivative of the model acceleration, so we can just derivate the relation
+that related to $\nu^{pin}$ and $\nu^{idyn}$ to obtain:
+
+$$
+\dot{\nu}^{pin} =
+\dot{T} \nu^{idyn} + T \dot{\nu}^{idyn}
+$$
+
+where, as the permutation matrix $P$ is constant, i.e. $\dot{P} = 0$, so we have:
+
+$$
+\dot{T} =
+\begin{bmatrix}
+{}^B \dot{X}\_{velReprFrame} & 0\_{6 \times dof} \\\\
+0\_{dof \times 6} & 0\_{dof \times dof}
+\end{bmatrix}
+$$
+
+Where, thanks to equation 2.36 in https://traversaro.github.io/traversaro-phd-thesis/traversaro-phd-thesis.pdf, ${}^B \dot{X}\_{velReprFrame} = {}^B {X}_{velReprFrame} {}^{velReprFrame} \mathrm{v}\_{B, velReprFrame} \times$.
+
+As a recap, the following table provides the different quantities related  to $T$ and $\dot{T}$ for different values of $velReprFrame$:
+
+| Velocity Representation Convention | velReprFrame |  ${}^B X_{velReprFrame}$ | ${}^{velReprFrame} \mathrm{v}\_{B, velReprFrame}$ |
+|:-----------------------------------:|:--------------:|:---------------------:|:----------------------------------------------:|
+| `BODY_FIXED_REPRESENTATION`         |  $B$          | ${}^B X_B = 1_{6 \times 6}$ |  |
+| `INERTIAL_FIXED_REPRESENTATION`     |  $A$          | ${}^B X_A$                  |        |
+| `MIXED_REPRESENTATION`              |  $B[A]$      |  ${}^B X_{B[A]} = $  |     |
+
+### Frame Acceleration
+
+Differently from frame velocities, for frame acceleration it is not possible to obtain the accelerations provided by the iDynTree interface (i.e. `KinDynComputations::getFrameAcc`) simply by specifing the `ReferenceFrame` parameter of the `pinocchio::getFrameAcceleration` function. This is because the semenatics of what "acceleration" is is different between iDynTree and pinocchio. In the case of iDynTree, the acceleration for a given representation is always the time derivative of the velocity in the same representation, while for pinocchio the time derivative is always done in the absolute/world frame, and then the resulting vector is projected back in the frame specified by `ReferenceFrame`. Similarly, `pinocchio` also provides a `pinocchio::getFrameClassicalAcceleration`, method, that does the derivative in the $F[A]$ frame, and project back
+the resulting vector in the frame specified by `ReferenceFrame`.
+
+In mathematical terms:
+
+| Velocity Representation Convention (Pinocchio)  | `pinocchio::getFrameAcceleration` for frame $F$   | `pinocchio::getFrameClassicalAcceleration` for frame $F$  |
+|:-----------------------------------:|:------------------------------------------------:|:------------------:|
+| `LOCAL_WORLD_ALIGNED`               |  ${}^{F[A]} X_{A} {}^A \dot{v}_{A,F}$            | ${}^{F[A]} \dot{v}_{A,F}$            |
+|   `WORLD`                           |  ${}^A \dot{v}_{A,F}$                            | ${}^{A} X_{F[A]} {}^{F[A]} \dot{v}_{A,F}$           |
+|   `LOCAL`                           |  ${}^{F} X_{A} {}^A \dot{v}_{A,F}$               | ${}^{F} X_{F[A]} {}^{F[A]} \dot{v}_{A,F}$  |
+
+
+| Velocity Representation Convention (iDynTree)  | `iDynTree::KinDynComputations::getFrameAcc` for frame $F$  |
+|:-----------------------------------:|:------------------------------------------------:|
+| `MIXED_REPRESENTATION`               |  ${}^{F[A]} \dot{v}_{A,F}$            |
+|   `INERTIAL_FIXED_REPRESENTATION`                           |  ${}^A \dot{v}_{A,F}$  |
+|   `BODY_FIXED_REPRESENTATION`                           |  ${}^{F} \dot{v}_{A,F}$               |
+
+Given that ${}^{F} \dot{v}\_{A,F} = {}^F X\_A {}^A \dot{v}\_{A,F}$ (to demonstrated that, just use equation 2.36 in https://traversaro.github.io/traversaro-phd-thesis/traversaro-phd-thesis.pdf), in a nutsheel this means that we can use `pinocchio::getFrameAcceleration` in the `INERTIAL_FIXED_REPRESENTATION` and `BODY_FIXED_REPRESENTATION`, and `pinocchio::getFrameClassicalAcceleration` for `MIXED_REPRESENTATION`.
+
+### Dynamics
+
+Both in the case of Pinocchio and iDynTree, the unconstrained dynamics is described similarly (for the sake of readability, we do not indicate in the following explicitly the dependencies on $q$ and $\nu$).
+
+Pinocchio:
+
+$$
+M^{pin} \dot{\nu}^{pin} + C^{pin} + g^{pin} = \tau^{pin}
+$$
+
+iDynTree:
+
+$$
+M^{idyn} \dot{\nu}^{idyn} + C^{idyn} + g^{idyn} = \tau^{idyn}
+$$
+
+where in this context $\tau^{pin} \in \mathbb{R}^{n+dof}$ and $\tau^{pin} \in \mathbb{R}^{n+dof}$ represent the generalized torques, obtained by summing the internal torques and the effect of the external 6D force on each link.
+
+Going from pinocchio to iDynTree is exactly a change of variables as defined in Section 3.6 of https://traversaro.github.io/traversaro-phd-thesis/traversaro-phd-thesis.pdf, with the difference that in this case the transformation matrix $T$:
+
+$$
+\nu^{pin} = T \nu^{idyn}
+= \begin{bmatrix}
+{}^B X_{velReprFrame} & 0_{6 \times dof} \\\\
+0_{dof \times 6} & P
+\end{bmatrix}
+\nu^{idyn}
+$$
+
+does not have an identity in the bottom right block, but rather a permutation matrix. However, the transformation formulas provided in that case also apply in this case, in particular using the Equation 3.60 of https://traversaro.github.io/traversaro-phd-thesis/traversaro-phd-thesis.pdf we have:
+
+$$
+M^{pin} = T^{-T} M^{idyn} T^{-1}
+$$
+and
+$$
+\tau^{pin} = T^{-T} \tau^{idyn}
+$$
+
+from which:
+
+$$
+M^{idyn} = T^{T} M^{pin} T
+$$
+and
+$$
+\tau^{idyn} = T^{T} \tau^{idyn}
+$$
+
+
+Similar transformation apply to $C^{idyn}$ and $g^{idyn}$
+
+#### Inverse Dynamics
+
+Given the conversion provided in the previous section, we can define the Inverse Dynamics (ID) function for idyn as:
+
+$$
+ID^{idyn}(\dot{\nu}^{idyn}) = M^{idyn} \dot{\nu}^{idyn} + C^{idyn} + g^{idyn}
+$$
+
+and the ID of pinocchio:
+
+$$
+ID^{pin}(\dot{\nu}^{pin}) = M^{pin} \dot{\nu}^{pin} + C^{pin} + g^{pin}
+$$
+
+so we can implement $ID^{idyn}$ using $ID^{pin}$ as:
+
+$$
+ID^{idyn}(\dot{\nu}^{idyn}) = T^{T} ID^{pin}(\dot{\nu}^{pin}) = T^{T} ID^{pin}(T \dot{\nu}^{idyn} + \dot{T} \nu^{idyn})
+$$
+
+#### Inverse Dynamics  Bias Forces
+
+A classical function provided by dynamics libraries is the one that provides just the coriolis and gravity forces, i.e.: 
+
+$$
+H^{idyn} = ID^{idyn}(0) = C^{idyn} + g^{idyn}
+$$
+
+By using the formula to express iDynTree's ID in term of Pinocchio's ID and substituting $\dot{\nu}^{idyn}$, it is possible to expressed iDynTree's bias forces in term of Pinocchio's ID:
+
+$$
+H^{idyn} = ID^{idyn}(0) = ID^{idyn}(0) = T^{T} ID^{pin}(\dot{T} \nu^{idyn})
+$$
+
+**Important Note: As highlighted in the previous formula, substituing $\dot{\nu}^{idyn} = 0$ is not equivalent as substituing $\dot{\nu}^{pin} = 0$.**
+
+#### Forward Dynamics
+
+Given the conversion provided in the previous section, we can define the Forward Dynamics (FD) function for idyn as:
+
+$$
+FD^{idyn}(\tau^{idyn}) = {(M^{idyn})}^{-1} \left( \tau^{idyn} - C^{idyn} - g^{idyn} \right)
+$$
+
+and the ID of pinocchio:
+
+$$
+FD^{pin}(\tau^{pin}) = {(M^{pin})}^{-1} \left( \tau^{pin} - C^{pin} - g^{pin} \right)
+$$
+
+so we can implement $FD^{idyn}$ using $FD^{pin}$ as:
+
+$$
+FD^{idyn}(\tau^{idyn}) = \text{totalAccPinToiDyn}(FD^{pin}(\tau^{pin})) = \text{totalAccPinToiDyn}(FD^{pin}(T^{-T} \tau^{idyn}))
+$$
+
+where:
+
+$$
+\text{totalAccPinToiDyn}(a) = T^{-1} (a - \dot{T} \nu^{idyn})
+$$
+

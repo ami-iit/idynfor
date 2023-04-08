@@ -29,7 +29,16 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::computeFwdKinem
     this->convertModelStateFromiDynTreeToPinocchio();
 
     // Compute position and velocity kinematics
-    pinocchio::forwardKinematics(m_pinModel, m_pinData, m_pin_model_position, m_pin_model_velocity);
+    if (!m_isAccelerationSet)
+    {
+        pinocchio::forwardKinematics(m_pinModel, m_pinData, m_pin_model_position, m_pin_model_velocity);
+    }
+    else
+    {
+        this->convertModelAccelerationFromiDynTreeToPinocchio();
+        pinocchio::forwardKinematics(m_pinModel, m_pinData, m_pin_model_position,
+                                     m_pin_model_velocity, m_pin_model_acceleration);
+    }
 
     this->m_isFwdKinematicsUpdated = true;
 }
@@ -82,6 +91,44 @@ KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+typename KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::Vector6s
+KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
+    getBaseAccelerationInBodyFixed()
+{
+    Vector6s base_acceleration_in_base_body_fixed_representation;
+
+    // This handles the case BODY -> BODY that is easier
+    if (iDynTree::BODY_FIXED_REPRESENTATION == m_frameVelRepr)
+    {
+        base_acceleration_in_base_body_fixed_representation = m_base_acceleration;
+    }
+
+    if (iDynTree::INERTIAL_FIXED_REPRESENTATION == m_frameVelRepr)
+    {
+        base_acceleration_in_base_body_fixed_representation = m_world_H_base.inverse().toActionMatrix() * m_base_acceleration;
+    }
+
+    if (iDynTree::MIXED_REPRESENTATION == m_frameVelRepr)
+    {
+        // See Cell 1,3 of Table 2.2 of https://traversaro.github.io/traversaro-phd-thesis/traversaro-phd-thesis.pdf (around page 20)
+        SE3s B_H_BA = getBaseHVelReprFrameTransform();
+        base_acceleration_in_base_body_fixed_representation = B_H_BA.toActionMatrix() * m_base_acceleration;
+
+        // v is base_velocity_in_base_body_fixed_representation
+        Vector6s v = B_H_BA.toActionMatrix() * m_base_velocity;
+        Vector3s vLin = v.segment(0,3);
+        Vector3s vAng = v.segment(3,3);
+
+        base_acceleration_in_base_body_fixed_representation.segment(0,3) =
+            base_acceleration_in_base_body_fixed_representation.segment(0,3) +
+            vLin.cross(vAng);
+    }
+
+
+    return base_acceleration_in_base_body_fixed_representation;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
     convertModelStateFromiDynTreeToPinocchio()
 {
@@ -131,6 +178,31 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
+    convertModelAccelerationFromiDynTreeToPinocchio()
+{
+    typedef Eigen::Matrix<Scalar, 4, 1, Options> Vector4s;
+    typedef Eigen::Quaternion<Scalar, Options> Quaternions;
+
+    ///////////////
+    // Acceleration
+    ///////////////
+
+    // pinocchio uses always the body-fixed/left-trivialized representation for the base velocity,
+    // while iDynTree uses the representation specified by setFrameVelocityRepresentation (mixed by
+    // default)
+    m_pin_model_acceleration.block(0, 0, 6, 1) = getBaseAccelerationInBodyFixed();
+
+    // Set internal joint accelerations
+    for (size_t dof = 0; dof < m_idyntreeModel.getNrOfDOFs(); dof++)
+    {
+        m_pin_model_acceleration[m_idyntreeDOFOffset2PinocchioJointVelOffset[dof]] = m_joint_acceleration[dof];
+    }
+
+    return;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
      convertLeftSideOfMatrixFromPinocchioToiDynTree(const Matrix6Xs& pinocchioMatrixOnTheLeft,
                                                           Matrix6Xs& idyntreeMatrixOnTheLeft)
 {
@@ -170,11 +242,13 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
 
     m_pinData = pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>(m_pinModel);
 
-    // Resize m_pin_model_position and m_pin_model_velocity to right size
+    // Resize m_pin_model_position, m_pin_model_velocity and m_pin_model_acceleration to right size
     m_pin_model_position.resize(m_pinModel.nq);
     m_pin_model_position.setZero();
     m_pin_model_velocity.resize(m_pinModel.nv);
     m_pin_model_velocity.setZero();
+    m_pin_model_acceleration.resize(m_pinModel.nv);
+    m_pin_model_acceleration.setZero();
 
     // Build the map to convert iDynTree indeces to Pinocchio indeces
 
@@ -230,6 +304,12 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
 
     // Resize buffers
     m_bufJacobian.resize(6, 6 + m_idyntreeModel.getNrOfDOFs());
+
+    // Reset cache variables
+    m_isStateSet = false;
+    m_isAccelerationSet = false;
+    m_isFwdKinematicsUpdated = false;
+    m_areBiasAccelerationsUpdated = false;
 
     m_modelLoaded = true;
     return true;
@@ -297,6 +377,8 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setRobotState(
     const Eigen::Ref<const VectorXs>& joint_vel,
     const Eigen::Ref<const Vector3s>& world_gravity)
 {
+    m_isStateSet = true;
+
     this->invalidateCache();
 
     if (joint_pos.size() != m_idyntreeModel.getNrOfPosCoords())
@@ -382,6 +464,54 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getRobotState(
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::setRobotAcceleration(
+    const Eigen::Ref<const Vector6s>& base_acceleration,
+    const Eigen::Ref<const VectorXs>& joint_acceleration)
+{
+    if (joint_acceleration.size() != m_idyntreeModel.getNrOfDOFs())
+    {
+        if (m_verbose)
+        {
+            std::cerr << "iDynFor::KinDynComputationsTpl wrong size of joint_acceleration argument "
+                         "(required: "
+                      << m_idyntreeModel.getNrOfDOFs() << ", got: " << joint_acceleration.size() << ")"
+                      << std::endl;
+        }
+        return false;
+    }
+
+    m_isAccelerationSet = true;
+
+    this->invalidateCache();
+
+    // Save acceleration
+    m_base_acceleration = base_acceleration;
+    m_joint_acceleration = joint_acceleration;
+
+    return true;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getRobotAcceleration(
+    Eigen::Ref<Vector6s> base_acceleration,
+    Eigen::Ref<VectorXs> joint_acceleration) const
+{
+    if (joint_acceleration.size() != m_idyntreeModel.getNrOfDOFs())
+    {
+        std::cerr << "iDynFor::KinDynComputationsTpl wrong size of joint_acceleration argument "
+                     "(required: "
+                  << m_idyntreeModel.getNrOfDOFs() << ", got: " << joint_acceleration.size() << ")"
+                  << std::endl;
+        return false;
+    }
+
+    base_acceleration = m_base_acceleration;
+    joint_acceleration = m_joint_acceleration;
+
+    return true;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 int KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameIndex(
     const std::string& frameName) const
 {
@@ -403,6 +533,16 @@ template <typename Scalar, int Options, template <typename, int> class JointColl
 bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getWorldTransform(
     const iDynTree::FrameIndex frameIndex, SE3s& world_H_frame)
 {
+    if (!m_isStateSet)
+    {
+        if (m_verbose)
+        {
+            std::cerr << "Error: iDynFor::KinDynComputationsTpl::getWorldTransform called before any call to setRobotState "
+                      << std::endl;
+        }
+        return false;
+    }
+
     this->computeFwdKinematics();
 
     // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
@@ -426,6 +566,16 @@ template <typename Scalar, int Options, template <typename, int> class JointColl
 bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameVel(
     const iDynTree::FrameIndex frameIndex, Vector6s& frameVel)
 {
+    if (!m_isStateSet)
+    {
+        if (m_verbose)
+        {
+            std::cerr << "Error: iDynFor::KinDynComputationsTpl::getFrameVel called before any call to setRobotState "
+                      << std::endl;
+        }
+        return false;
+    }
+
     this->computeFwdKinematics();
 
     // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
@@ -445,6 +595,17 @@ template <typename Scalar, int Options, template <typename, int> class JointColl
 bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex,
                                       Matrix6Xs& outJacobian)
 {
+    if (!m_isStateSet)
+    {
+        if (m_verbose)
+        {
+            std::cerr << "Error: iDynFor::KinDynComputationsTpl::getFrameFreeFloatingJacobian called before any call to setRobotState "
+                      << std::endl;
+        }
+        return false;
+    }
+
+
     if (!m_idyntreeModel.isValidFrameIndex(frameIndex))
     {
         iDynTree::reportError("iDynFor::KinDynComputationsTpl",
@@ -485,6 +646,58 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameFreeFlo
 
     return true;
 }
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameAcc(
+    const iDynTree::FrameIndex frameIndex, Eigen::Ref<Vector6s> frameAcc)
+{
+    if (!m_isStateSet)
+    {
+        if (m_verbose)
+        {
+            std::cerr << "Error: iDynFor::KinDynComputationsTpl::getFrameAcc called before any call to setRobotState "
+                      << std::endl;
+        }
+        return false;
+    }
+
+    if (!m_isAccelerationSet)
+    {
+        if (m_verbose)
+        {
+            std::cerr << "Error: iDynFor::KinDynComputationsTpl::getFrameAcc called before any call to setRobotAcceleration "
+                      << std::endl;
+        }
+        return false;
+    }
+
+    this->computeFwdKinematics();
+
+    pinocchio::FrameIndex pinFrameIndex
+        = m_idyntreeFrameIndex2PinocchioFrameIndex[frameIndex];
+
+    // See section "Frame Acceleration" of doc/theory_background.md for details
+    if (iDynTree::MIXED_REPRESENTATION == m_frameVelRepr)
+    {
+        frameAcc = pinocchio::getFrameClassicalAcceleration(m_pinModel,
+                                                            m_pinData,
+                                                            pinFrameIndex,
+                                                            toPinocchio(m_frameVelRepr))
+                       .toVector();
+    } else
+    {
+        assert(iDynTree::INERTIAL_FIXED_REPRESENTATION == m_frameVelRepr
+               || iDynTree::BODY_FIXED_REPRESENTATION == m_frameVelRepr);
+        frameAcc = pinocchio::getFrameAcceleration(m_pinModel,
+                                                   m_pinData,
+                                                   pinFrameIndex,
+                                                   toPinocchio(m_frameVelRepr))
+                       .toVector();
+    }
+
+    return true;
+}
+
 
 
 } // namespace iDynFor

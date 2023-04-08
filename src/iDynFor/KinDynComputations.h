@@ -49,6 +49,12 @@ private:
     // iDynTree model
     iDynTree::Model m_idyntreeModel;
     // iDynTree::FrameVelocityRepresentation used
+    // Many quantity are defined in a frame that depends on the used FrameVelocityRepresentation,
+    // In particular we call velReprFrame this frame, that has value:
+    // iDynTree::MIXED_REPRESENTATION : B[A]
+    // iDynTree::INERTIAL_FIXED_FRAME : A
+    // iDynTree::BODY_FIXED_FRAME : B
+    // Where A is the absolute/world/universe frame, and B is the base link frame
     iDynTree::FrameVelocityRepresentation m_frameVelRepr = iDynTree::MIXED_REPRESENTATION;
     // Pinocchio model
     pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> m_pinModel;
@@ -65,10 +71,14 @@ private:
     SE3s m_world_H_base;
     // Internal joint positions: s
     VectorXs m_joint_pos;
-    // Base Velocity: {}^B \mathrm{v}_{A,B} with linear/angular serialization
+    // Base Velocity: {}^{velReprFrame} \mathrm{v}_{A,B} with linear/angular serialization
     Vector6s m_base_velocity;
     // Internal joint velocities: \dot{s}
     VectorXs m_joint_vel;
+    // Base Acceleration: {}^{velReprFrame} \dot{\mathrm{v}}_{A,B} with linear/angular serialization
+    Vector6s m_base_acceleration;
+    // Internal joint accelerations: \ddot{s}
+    VectorXs m_joint_acceleration;
     // Gravity expressed in absolute frame: {}^A g
     Vector3s m_world_gravity;
 
@@ -79,6 +89,9 @@ private:
 
     // Base and internal joint velocities
     VectorXs m_pin_model_velocity;
+
+    // Base and internal joint accelerations
+    VectorXs m_pin_model_acceleration;
 
     // Conversion-related quantities
     std::vector<size_t> m_idyntreeDOFOffset2PinocchioJointPosOffset;
@@ -92,6 +105,8 @@ private:
     bool m_verbose = true;
 
     // Cache-related flags methods
+    bool m_isStateSet = false;
+    bool m_isAccelerationSet = false;
     bool m_isFwdKinematicsUpdated = false;
     bool m_areBiasAccelerationsUpdated = false;
 
@@ -112,9 +127,13 @@ private:
     SE3s getBaseHVelReprFrameTransform();
 
     Vector6s getBaseVelocityInBodyFixed();
+    Vector6s getBaseAccelerationInBodyFixed();
 
     // Convert model state from iDynTree formalism to pinocchio formalism
     void convertModelStateFromiDynTreeToPinocchio();
+
+    // Convert model acceleration from iDynTree formalism to pinocchio formalism
+    void convertModelAccelerationFromiDynTreeToPinocchio();
 
     // Convert left-side of a matrix from accepting Pinocchio velocity to accepting iDynTree velocities
     void convertLeftSideOfMatrixFromPinocchioToiDynTree(const Matrix6Xs& pinocchioMatrixOnTheLeft,
@@ -228,6 +247,30 @@ public:
                        Eigen::Ref<Vector3s> world_gravity) const;
 
     /**
+     * Set the acceleration for the robot (floating base)
+     *
+     * @param base_acceleration The twist (linear/angular velocity) of the base, expressed with the
+     * convention specified by the used FrameVelocityConvention.
+     * @param joint_acceleration a vector of getNrOfDegreesOfFreedom() joint velocities (in rad/sec^2)
+     *
+     * @return true if all went well, false otherwise.
+     */
+    bool setRobotAcceleration(const Eigen::Ref<const Vector6s>& base_acceleration,
+                              const Eigen::Ref<const VectorXs>& joint_acceleration);
+
+    /**
+     * Get the acceleration for the robot (floating base)
+     *
+     * @param base_acceleration The twist (linear/angular velocity) of the base, expressed with the
+     * convention specified by the used FrameVelocityConvention.
+     * @param joint_acceleration a vector of getNrOfDegreesOfFreedom() joint velocities (in rad/sec^2)
+     *
+     * @return true if all went well, false otherwise.
+     */
+    bool getRobotAcceleration(Eigen::Ref<Vector6s> base_acceleration,
+                              Eigen::Ref<VectorXs> joint_acceleration) const;
+
+    /**
      * Get the index corresponding to a given frame name.
      * @return a integer greater than or equal to zero if the frame exist,
      *         a negative integer otherwise.
@@ -259,19 +302,42 @@ public:
     /**
      * Return the frame velocity, with the convention specified by getFrameVelocityRepresentation
      * and linear/angular serialization.
+     *
+     * See section "Frame velocity" of doc/theory_background.md document for more details.
      */
     bool getFrameVel(const iDynTree::FrameIndex frameIdx, Vector6s& frameVel);
 
     /**
-     * Compute the free floating jacobian for a given frame with the convention specified by getFrameVelocityRepresentation.
+     * Compute the free floating jacobian for a given frame with the convention specified by
+     * getFrameVelocityRepresentation.
      *
-     * In particular, the matrix returned by this method, if moltiplied by the vector obtained stacking base_velocity and s_dot
-     * (setRobotState arguments), returns the output of getFrameVel.
+     * In particular, the matrix returned by this method, if moltiplied by the vector obtained
+     * stacking base_velocity and s_dot (setRobotState arguments), returns the output of
+     * getFrameVel.
      *
      * @return true if all went well, false otherwise.
      */
-    bool getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex,
-                                      Matrix6Xs& outJacobian);
+    bool
+    getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex, Matrix6Xs& outJacobian);
+
+    //@}
+
+    /**
+     * @name Methods to get frame velocity information given the current state and acceleration.
+     */
+    //@{
+
+    /**
+     * Return the frame velocity, with the convention specified by getFrameVelocityRepresentation
+     * and linear/angular serialization.
+     *
+     * See section "Frame Acceleration" of doc/theory_background.md document for more details.
+     */
+    bool getFrameAcc(const iDynTree::FrameIndex frameIdx, Eigen::Ref<Vector6s> frameAcc);
+
+    //@}
+
+
 
 };
 
