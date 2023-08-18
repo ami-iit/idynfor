@@ -1,0 +1,13 @@
+name: idynfordev
+channels:
+  - conda-forge
+dependencies:
+  - cmake
+  - compilers
+  - make 
+  - ninja
+  - pkg-config
+  - idyntree
+  - pinocchio
+  - catch2
+  - eigenpy
