@@ -1,0 +1,38 @@
+[project]
+name = "idynfor"
+version = "0.0.1"
+description = "iDynTree-compatible dynamics library implemented on top of pinocchio."
+authors = ["Silvio Traversaro <silvio.traversaro@iit.it>"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64", "linux-aarch64", "osx-arm64"]
+
+[tasks]
+configure = { cmd = [
+    "cmake",
+    # Use the cross-platform Ninja generator
+    "-G",
+    "Ninja",
+    # The source is in the root directory
+    "-S",
+    ".",
+    # We wanna build in the .build directory
+    "-B",
+    ".build",
+    # Build in Release
+    "-DCMAKE_BUILD_TYPE=Release",
+    "-DBUILD_TESTING:BOOL=ON"
+] }
+
+build = { cmd = ["ninja", "-C", ".build"], depends_on = ["configure"] }
+test = { cmd = ["ctest", "--test-dir", ".build"], depends_on = ["build"] }
+
+[dependencies]
+cmake = "*"
+compilers = "*"
+make = "*"
+ninja = "*"
+pkg-config = "*"
+idyntree = "*"
+pinocchio = "*"
+catch2 = "*"
+eigenpy = "*"
