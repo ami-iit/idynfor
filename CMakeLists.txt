@@ -18,6 +18,16 @@ cmake_minimum_required(VERSION 3.5)
 #    test/CMakeLists.txt accordingly.
 ###
 
+# Load version from pixi.toml
+file(READ pixi.toml PIXI_TOML)
+# Format needs to be 1 to 4 numbers separated by dots
+set(PIXI_VERSION_REGEX "version = \"(([0-9]+)(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?)\"")
+string(REGEX MATCH "${PIXI_VERSION_REGEX}" PIXI_REGEX_OUTPUT ${PIXI_TOML})
+set(PIXI_VERSION_STRING ${CMAKE_MATCH_1})
+if(PIXI_VERSION_STRING STREQUAL "")
+  message(FATAL_ERROR "Impossible to read version from pixi.toml")
+endif()
+
 # This sets the PROJECT_NAME, PROJECT_VERSION as well as other variable
 # listed here: https://cmake.org/cmake/help/latest/command/project.html.
 # We use this name to export all the files such that is then possible to use
@@ -29,7 +39,7 @@ cmake_minimum_required(VERSION 3.5)
 # LANGUAGES is not specified CMake enables both CXX and C.
 project(iDynFor
         LANGUAGES CXX C
-        VERSION 0.0.1)
+        VERSION ${PIXI_VERSION_STRING})
 
 # Defines the CMAKE_INSTALL_LIBDIR, CMAKE_INSTALL_BINDIR and many other useful macros.
 # See https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html

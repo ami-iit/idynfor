@@ -32,4 +32,6 @@
 *.app
 
 # Folders
+**/.pixi/*
+**/.build/*
 **/build/*
