@@ -323,7 +323,7 @@ public:
     //@}
 
     /**
-     * @name Methods to get frame velocity information given the current state and acceleration.
+     * @name Methods to get frame acceleration information given the current state and acceleration.
      */
     //@{
 
