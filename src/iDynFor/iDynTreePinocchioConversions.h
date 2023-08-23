@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Fondazione Istituto Italiano di Tecnologia (IIT)
 // SPDX-License-Identifier: BSD-3-Clause
 
+#ifndef IDYNFOR_IDYNTREEPINOCCHIOCONVERSIONS_H
+#define IDYNFOR_IDYNTREEPINOCCHIOCONVERSIONS_H
+
 // std
 #include <deque>
 
@@ -741,3 +744,5 @@ bool buildPinocchioModelfromiDynTree(
 }
 
 } // namespace iDynFor
+
+#endif
