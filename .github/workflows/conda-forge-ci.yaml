@@ -43,7 +43,7 @@ jobs:
       shell: bash -l {0}
       run: |
         mkdir -p build
-        cd build    
+        cd build
         cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
               -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/install -DBUILD_TESTING:BOOL=ON ..
 
@@ -58,11 +58,17 @@ jobs:
       shell: bash -l {0}
       run: |
         cd build
-        cmake --build . --config ${{ matrix.build_type }} 
+        cmake --build . --config ${{ matrix.build_type }}
 
     - name: Test
       if: contains(matrix.os, 'macos') || contains(matrix.os, 'ubuntu')
       shell: bash -l {0}
       run: |
         cd build
-        ctest  --repeat until-pass:5 --output-on-failure -C ${{ matrix.build_type }} .
+        ctest  --repeat until-pass:5 --output-on-failure -E "Benchmark" -C ${{ matrix.build_type }} .
+
+    - name: Benchmark
+      shell: bash -l {0}
+      run: |
+        cd build
+        ctest -R "Benchmark" -C ${{ matrix.build_type }} -VV .
