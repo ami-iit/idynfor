@@ -177,6 +177,8 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
     m_pin_model_velocity.setZero();
 
     // Build the map to convert iDynTree indeces to Pinocchio indeces
+
+    //// Joint-related indices
     m_idyntreeDOFOffset2PinocchioJointPosOffset.resize(m_idyntreeModel.getNrOfDOFs());
     m_idyntreeDOFOffset2PinocchioJointVelOffset.resize(m_idyntreeModel.getNrOfDOFs());
 
@@ -206,6 +208,16 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
                 = velocityOffsetPinocchio;
         }
     }
+
+    //// Frame indices
+    m_idyntreeFrameIndex2PinocchioFrameIndex.resize(m_idyntreeModel.getNrOfFrames());
+
+    for (iDynTree::FrameIndex frameIndex = 0; frameIndex < m_idyntreeModel.getNrOfFrames(); frameIndex++)
+    {
+        m_idyntreeFrameIndex2PinocchioFrameIndex[frameIndex]
+            = m_pinModel.getFrameId(m_idyntreeModel.getFrameName(frameIndex));
+    }
+
 
     // Create permutation matrix
     m_pinocchio_P_idyntree.resize(m_idyntreeModel.getNrOfDOFs());
@@ -395,9 +407,8 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getWorldTransfo
 
     // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
     // TODO(traversaro): also support additional frames, not only frames associated to a link
-    // TODO(traversaro): cache this information, there is no need to do a string search every time
     pinocchio::FrameIndex pinFrameIndex
-        = m_pinModel.getFrameId(m_idyntreeModel.getFrameName(frameIndex));
+        = m_idyntreeFrameIndex2PinocchioFrameIndex[frameIndex];
 
     // After computeFwdKinematics computed the forwardKinematics, in m_pinData it is
     // store the universe_H_<..> transform for each joint frame
@@ -418,9 +429,8 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameVel(
     this->computeFwdKinematics();
 
     // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
-    // TODO(traversaro): cache this information, there is no need to do a string search every time
     pinocchio::FrameIndex pinFrameIndex
-        = m_pinModel.getFrameId(m_idyntreeModel.getFrameName(frameIndex));
+        = m_idyntreeFrameIndex2PinocchioFrameIndex[frameIndex];
 
     frameVel = pinocchio::getFrameVelocity(m_pinModel,
                                            m_pinData,
@@ -458,7 +468,7 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameFreeFlo
     // Convert iDynTree::FrameIndex to pinocchio::FrameIndex
     // TODO(traversaro): cache this information, there is no need to do a string search every time
     pinocchio::FrameIndex pinFrameIndex
-        = m_pinModel.getFrameId(m_idyntreeModel.getFrameName(frameIndex));
+        = m_idyntreeFrameIndex2PinocchioFrameIndex[frameIndex];
 
     // Compute Jacobian that on left has the right representation (as we pass it via toPinocchio(m_frameVelRepr))
     // but on the left accepts v^{pin} and not v^{idyn} (as defined in doc/theory_background.md)

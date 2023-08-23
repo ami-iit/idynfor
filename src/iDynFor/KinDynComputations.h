@@ -83,6 +83,8 @@ private:
     // Conversion-related quantities
     std::vector<size_t> m_idyntreeDOFOffset2PinocchioJointPosOffset;
     std::vector<size_t> m_idyntreeDOFOffset2PinocchioJointVelOffset;
+    std::vector<pinocchio::FrameIndex> m_idyntreeFrameIndex2PinocchioFrameIndex;
+
     // Permutation matrix, see "Model Position" section of doc/theory_background.md
     Eigen::PermutationMatrix<Eigen::Dynamic> m_pinocchio_P_idyntree;
 
