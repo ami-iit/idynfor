@@ -1,7 +1,5 @@
-/*
- * SPDX-FileCopyrightText: Fondazione Istituto Italiano di Tecnologia
- * SPDX-License-Identifier: BSD-3-Clause
- */
+// SPDX-FileCopyrightText: Fondazione Istituto Italiano di Tecnologia (IIT)
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef IDYNFOR_KINDYNCOMPUTATIONS_H
 #define IDYNfOR_KINDYNCOMPUTATIONS_H
