@@ -57,6 +57,12 @@ public:
                        iDynTree::VectorDynSize& s_dot,
                        iDynTree::Vector3& world_gravity) const;
 
+    bool setRobotAcceleration(const iDynTree::Vector6& baseAcc,
+                          const iDynTree::VectorDynSize& s_ddot);
+
+    void getRobotAcceleration(iDynTree::Vector6& baseAcc,
+                              iDynTree::VectorDynSize& s_ddot) const;
+
     int getFrameIndex(const std::string& frameName) const;
     std::string getFrameName(const iDynTree::FrameIndex frameIndex) const;
     iDynTree::Transform getWorldTransform(const iDynTree::FrameIndex frameIndex);
@@ -74,6 +80,28 @@ public:
                                       iDynTree::MatrixView<double> outJacobian);
     bool getFrameFreeFloatingJacobian(const iDynTree::FrameIndex frameIndex,
                                       iDynTree::MatrixView<double> outJacobian);
+
+    iDynTree::Vector6 getFrameAcc(const std::string & frameName);
+    bool getFrameAcc(const std::string & frameName,
+                     iDynTree::Span<double> frame_acceleration);
+    iDynTree::Vector6 getFrameAcc(const iDynTree::FrameIndex frameIdx);
+    bool getFrameAcc(const iDynTree::FrameIndex frameName,
+                     iDynTree::Span<double> frame_acceleration);
+
+    iDynTree::Vector6 getFrameAcc(const std::string & frameName,
+                        const iDynTree::Vector6& baseAcc,
+                        const iDynTree::VectorDynSize& s_ddot);
+    bool getFrameAcc(const std::string & frameName,
+                     iDynTree::Span<const double> baseAcc,
+                     iDynTree::Span<const double> s_ddot,
+                     iDynTree::Span<double> frame_acceleration);
+    iDynTree::Vector6 getFrameAcc(const iDynTree::FrameIndex frameIdx,
+                        const iDynTree::Vector6& baseAcc,
+                        const iDynTree::VectorDynSize& s_ddot);
+    bool getFrameAcc(const iDynTree::FrameIndex frameName,
+                     iDynTree::Span<const double> baseAcc,
+                     iDynTree::Span<const double> s_ddot,
+                     iDynTree::Span<double> frame_acceleration);
 };
 
 } // namespace iDynTreeFullyCompatible

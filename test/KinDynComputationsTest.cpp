@@ -81,6 +81,26 @@ TEST_CASE("KinDynComputations")
             REQUIRE(iDynTree::toEigen(joint_vel_copy).isApprox(iDynTree::toEigen(joint_vel)));
             REQUIRE(iDynTree::toEigen(gravity_copy).isApprox(iDynTree::toEigen(gravity)));
 
+            // Set random acceleration
+            iDynTree::Vector6 base_acc;
+            iDynTree::getRandomVector(base_acc);
+            iDynTree::VectorDynSize joint_acc;
+            joint_acc.resize(idynmodel.getNrOfDOFs());
+            iDynTree::getRandomVector(joint_acc);
+
+            // Uncomment once https://github.com/robotology/idyntree/issues/1092 is fixed
+            //REQUIRE(
+            //    kinDynTree.setRobotAcceleration(base_acc, joint_acc));
+            REQUIRE(kinDynFor.setRobotAcceleration(base_acc, joint_acc));
+
+
+            iDynTree::Vector6 base_acc_copy;
+            iDynTree::VectorDynSize joint_acc_copy;
+            kinDynFor.getRobotAcceleration(base_acc_copy,
+                                           joint_acc_copy);
+            REQUIRE(iDynTree::toEigen(base_acc_copy).isApprox(iDynTree::toEigen(base_acc)));
+            REQUIRE(iDynTree::toEigen(joint_acc_copy).isApprox(iDynTree::toEigen(joint_acc)));
+
             // Test frame-related methods
             int nrOfFramesToTest = 20;
             for (int fr = 0; fr < nrOfFramesToTest; fr++)
@@ -112,6 +132,17 @@ TEST_CASE("KinDynComputations")
                 REQUIRE(frameVelFor.isApprox(frameVelTree));
 
 
+                // Test getFrameAcc
+                Eigen::Matrix<double, 6, 1> frameAccFor
+                    = iDynTree::toEigen(kinDynFor.getFrameAcc(randomFrameIndex, base_acc, joint_acc));
+                Eigen::Matrix<double, 6, 1> frameAccTree
+                    = iDynTree::toEigen(kinDynTree.getFrameAcc(randomFrameIndex, base_acc, joint_acc));
+                // Uncomment for debug
+                //std::cerr << "Frame acceleraton of " <<
+                //kinDynFor.model().getFrameName(randomFrameIndex) << std::endl; std::cerr <<
+                //frameAccFor << std::endl; std::cerr << frameAccTree << std::endl;
+                REQUIRE(frameAccFor.isApprox(frameAccTree));
+
                 // Test getFrameFreeFloatingJacobian
                 Eigen::MatrixXd jacobianFor(6, 6+idynmodel.getNrOfDOFs());
                 Eigen::MatrixXd jacobianTree(6, 6+idynmodel.getNrOfDOFs());
@@ -120,9 +151,9 @@ TEST_CASE("KinDynComputations")
                 REQUIRE(kinDynTree.getFrameFreeFloatingJacobian(
                     randomFrameIndex, iDynTree::make_matrix_view(jacobianTree)));
                 REQUIRE(jacobianFor.isApprox(jacobianTree));
-
-
             }
+
+
         }
     }
 }
