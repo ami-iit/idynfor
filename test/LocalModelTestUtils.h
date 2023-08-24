@@ -23,6 +23,29 @@ inline iDynTree::FrameVelocityRepresentation iDynFor_getRandomVelocityRepresenta
     return iDynTree::MIXED_REPRESENTATION;
 }
 
+// Useful for debugging
+iDynTree::Link getBoringLink()
+{
+    double cxx = 10;
+    double cyy = 15;
+    double czz = 20;
+    double rotInertiaData[3*3] = {czz+cyy,0.0,0.0,
+                                  0.0,cxx+czz,0.0,
+                                  0.0,0.0,cxx+cyy};
+
+    iDynTree::Rotation rot = iDynTree::Rotation::RPY(0.0, 0.0, 0.0);
+
+    iDynTree::SpatialInertia inertiaLink(1,
+                               iDynTree::Position(2,3,4),
+                               rot*iDynTree::RotationalInertiaRaw(rotInertiaData,3,3));
+
+    iDynTree::Link link;
+
+    link.setInertia(inertiaLink);
+
+    return link;
+}
+
 // Functions vendored from
 // https://github.com/robotology/idyntree/blob/4e9d8097753dc146914e55f5656b465d00e6b25f/src/model/include/iDynTree/Model/ModelTestUtils.h#L118
 // As we currently need to customize them until iDynFor support all features of iDynTree::Model

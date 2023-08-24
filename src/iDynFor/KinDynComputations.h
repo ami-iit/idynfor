@@ -107,11 +107,16 @@ private:
     // Cache-related flags methods
     bool m_isStateSet = false;
     bool m_isAccelerationSet = false;
+    bool m_isConvertedStateUpdated = false;
+    bool m_isConvertedAccelerationUpdated = false;
     bool m_isFwdKinematicsUpdated = false;
     bool m_areBiasAccelerationsUpdated = false;
 
     // Buffer for Jacobian-shaped quantities
     Matrix6Xs m_bufJacobian;
+
+    // Buffer for MassMatrix-shaped quantities
+    MatrixXs m_bufMassMatrix;
 
     // Invalidate the cache of intermediate results (called by setRobotState)
     void invalidateCache();
@@ -135,9 +140,18 @@ private:
     // Convert model acceleration from iDynTree formalism to pinocchio formalism
     void convertModelAccelerationFromiDynTreeToPinocchio();
 
-    // Convert left-side of a matrix from accepting Pinocchio velocity to accepting iDynTree velocities
-    void convertLeftSideOfMatrixFromPinocchioToiDynTree(const Matrix6Xs& pinocchioMatrixOnTheLeft,
-                                                        Matrix6Xs& idyntreeMatrixOnTheLeft);
+    // Convert left-side of a jacobian matrix from accepting Pinocchio velocity to accepting iDynTree velocities
+    void convertLeftSideOfJacobianMatrixFromPinocchioToiDynTree(const Matrix6Xs& pinocchioMatrixOnTheLeft,
+                                                                      Matrix6Xs& idyntreeMatrixOnTheLeft);
+
+    // Convert left-side of a mass matrix matrix from accepting Pinocchio velocity to accepting iDynTree velocities
+    void convertLeftSideOfMassMatrixFromPinocchioToiDynTree(const MatrixXs& pinocchioMatrixOnTheLeft,
+                                                                  MatrixXs& idyntreeMatrixOnTheLeft);
+
+    // Convert right-side of a mass matrix matrix from returning Pinocchio generalized torques to accepting iDynTree generalized torques
+    void convertRightSideOfMassMatrixFromPinocchioToiDynTree(const MatrixXs& pinocchioMatrixOnTheRight,
+                                                                   MatrixXs& idyntreeMatrixOnTheRight);
+
 
 public:
     /**
@@ -337,6 +351,72 @@ public:
 
     //@}
 
+    /**
+      * @name Methods to get quantities related to unconstrained free floating equation of motions.
+      *
+      * This methods permits to compute several quantities related to free floating equation of methods.
+      * Note that this equations needs to be coupled with a description of the interaction between the model
+      * and the enviroment (such as a contant model, a bilateral constraint on some links or by considering
+      * some external forces as inputs) to actually obtain a dynamical system description of the mechanical model evolution.
+      *
+      * The equations of motion of a free floating mechanical system under the effect of a uniform gravitational field are:
+      * \f[
+      * M(q) \dot{\nu} +
+      * C(q, \nu) \nu +
+      * G(q)
+      * =
+      * \begin{bmatrix}
+      * 0_{6\times1} \newline
+      * \tau
+      * \end{bmatrix}
+      * +
+      * \sum_{L \in \mathcal{L}}
+      * J_L^T \mathrm{f}_L^x
+      * \f]
+      *
+      * where:
+      *
+      * * \f$n_{PC}\f$ is the value returned by Model::getNrOfPosCoords,
+      * * \f$n_{DOF}\f$ is the value returned by Model::getNrOfDOFs,
+      * * \f$n_{L}\f$ is the value returned by Model::getNrOfLinks,
+      * * \f$q \in \mathbb{R}^3 \times \textrm{SO}(3) \times \mathbb{R}^{n_{PC}}\f$ is the robot position,
+      * * \f$\nu \in \mathbb{R}^{6+n_{DOF}}\f$ is the robot velocity,
+      * * \f$\dot{\nu} \in \mathbb{R}^{6+n_{DOF}}\f$ is the robot acceleration,
+      * * \f$M(q) \in \mathbb{R}^{(6+n_{DOF}) \times (6+n_{DOF})}\f$ is the free floating mass matrix,
+      * * \f$C(q, \nu)  \in \mathbb{R}^{(6+n_{DOF}) \times (6+n_{DOF})}\f$ is the coriolis matrix,
+      * * \f$G(q) \in \mathbb{R}^{6+n_{DOF}}\f$ is the vector of gravity generalized forces,
+      * * \f$\tau \in \mathbb{R}^6\f$ is the vector of torques applied on the joint of the multibody model,
+      * * \f$\mathcal{L}\f$ is the set of all the links contained in the multibody model,
+      * * \f$J_L \in \mathbb{R}^{6+n_{DOF}}\f$ is the free floating jacobian of link \f$L\f$ as obtained by KinDynComputations::getFrameFreeFloatingJacobian,
+      * * \f$\mathrm{f}_L^x\f$ is the 6D force/torque applied by the enviroment on link \f$L\f$.
+      *
+      * The precise definition of each quantity (in particular the part related to the base) actually depends on the
+      * choice of FrameVelocityRepresentation, specified with the setFrameVelocityRepresentation method.
+      *
+      */
+    //@{
+
+    /**
+     * @brief Get the free floating mass matrix of the system.
+     *
+     * This method computes \f$M(q) \in \mathbb{R}^{(6+n_{DOF}) \times (6+n_{DOF})}\f$.
+     *
+     * The mass matrix depends on the joint positions, specified by the setRobotState methods.
+     * If the chosen FrameVelocityRepresentation is MIXED_REPRESENTATION or INERTIAL_FIXED_REPRESENTATION,
+     * the mass matrix depends also on the base orientation with respect to the inertial frame,
+     * that is also set by the setRobotState methods.
+     *
+     * For more details on the structure of the free floating mass matrix, please check:
+     * S. Traversaro, A. Saccon
+     * Multibody Dynamics Notation
+     * http://repository.tue.nl/849895
+     *
+     * @param[out] freeFloatingMassMatrix the (6+getNrOfDOFs()) times (6+getNrOfDOFs()) output mass matrix.
+     * @return true if all went well, false otherwise.
+     */
+    bool getFreeFloatingMassMatrix(MatrixXs& freeFloatingMassMatrix);
+
+    //@}
 
 
 };

@@ -73,5 +73,7 @@ install_basic_package_files(${PROJECT_NAME}
 include(AddUninstallTarget)
 
 # Add integration tests (unit tests for each library should be in each sublibrary directory).
-include(AddiDynForUnitTest)
-add_subdirectory(test)
+if(BUILD_TESTING)
+  include(AddiDynForUnitTest)
+  add_subdirectory(test)
+endif()

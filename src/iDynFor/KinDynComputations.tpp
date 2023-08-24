@@ -6,6 +6,7 @@
 #include <iDynTree/Core/Utils.h>
 
 #include <pinocchio/algorithm/joint-configuration.hpp>
+#include <pinocchio/algorithm/crba.hpp>
 
 namespace iDynFor
 {
@@ -16,6 +17,8 @@ template <typename Scalar, int Options, template <typename, int> class JointColl
 void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::invalidateCache()
 {
     m_isFwdKinematicsUpdated = false;
+    m_isConvertedStateUpdated = false;
+    m_isConvertedAccelerationUpdated = false;
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
@@ -132,6 +135,11 @@ template <typename Scalar, int Options, template <typename, int> class JointColl
 void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
     convertModelStateFromiDynTreeToPinocchio()
 {
+    if (m_isConvertedStateUpdated)
+    {
+        return;
+    }
+
     typedef Eigen::Matrix<Scalar, 4, 1, Options> Vector4s;
     typedef Eigen::Quaternion<Scalar, Options> Quaternions;
 
@@ -173,6 +181,8 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
         m_pin_model_velocity[m_idyntreeDOFOffset2PinocchioJointVelOffset[dof]] = m_joint_vel[dof];
     }
 
+    m_isConvertedStateUpdated = true;
+
     return;
 }
 
@@ -182,6 +192,11 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
 {
     typedef Eigen::Matrix<Scalar, 4, 1, Options> Vector4s;
     typedef Eigen::Quaternion<Scalar, Options> Quaternions;
+
+    if (m_isConvertedAccelerationUpdated)
+    {
+        return;
+    }
 
     ///////////////
     // Acceleration
@@ -198,15 +213,24 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
         m_pin_model_acceleration[m_idyntreeDOFOffset2PinocchioJointVelOffset[dof]] = m_joint_acceleration[dof];
     }
 
+    m_isConvertedAccelerationUpdated = true;
+
     return;
 }
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
-     convertLeftSideOfMatrixFromPinocchioToiDynTree(const Matrix6Xs& pinocchioMatrixOnTheLeft,
-                                                          Matrix6Xs& idyntreeMatrixOnTheLeft)
+     convertLeftSideOfJacobianMatrixFromPinocchioToiDynTree(const Matrix6Xs& pinocchioMatrixOnTheLeft,
+                                                                  Matrix6Xs& idyntreeMatrixOnTheLeft)
 {
     // See "Jacobians" section in doc/theory_background.md
+    // This function in partcular implements the equation
+    // J^{idyn} = J^{pin} T
+    // where T is the input pinocchio jacobian matrix, and O is the output iDynTree jacobian matrix
+    // This can be written as
+    // [ J^{idyn}_{base}   J^{idyn}_{joint} ] = [ J^{pin}_{base}   J^{pin}_{joint} ] [ {}^B X_velReprFrame      0    ]
+    //                                                                               [      0                   P    ]
+    // [ J^{idyn}_{base}   J^{idyn}_{joint} ] = [ J^{pin}_{base}{}^B X_velReprFrame   J^{pin}_{joint} P ]
 
     // Base part
     // J^{idyn}_{base} = J^{pin}_{base} {}^B X_velReprFrame
@@ -220,6 +244,66 @@ void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
 
     return;
 }
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
+     convertLeftSideOfMassMatrixFromPinocchioToiDynTree(const MatrixXs& pinocchioInputMatrix,
+                                                              MatrixXs& idyntreeOutputMatrix)
+{
+    // See  "Dynamics" section in doc/theory_background.md,
+    // This function implements the part on the left of the mass matrix transformaton from Pinocchio to iDynTree
+    // O = I T
+    // where T is the input pinocchio matrix, and O is the output iDynTree matrix
+    // And T is the matrix that transform iDynTree velocities in pinocchio velocities
+
+    // This can be written as
+    // [ O_{b,b}   O_{b,j} ] = [ I_{b,b}   I_{b,j} ] [ {}^B X_velReprFrame      0    ]
+    // [ O_{j,b}   O_{j,j} ] = [ I_{j,b}   I_{j,j} ] [      0                   P    ]
+
+    //  [ O_{b,b}   O_{b,j} ] = [ I_{b,b} {}^B X_velReprFrame   I_{b,j} P ]
+    //  [ O_{j,b}   O_{j,j} ] = [ I_{j,b} {}^B X_velReprFrame   I_{j,j} P ]
+
+    // Base columns part
+    idyntreeOutputMatrix.leftCols(6) =
+        pinocchioInputMatrix.leftCols(6)*getBaseHVelReprFrameTransform().toActionMatrix();
+
+    // Joint columns part
+    // J^{idyn}_{joint} = J^{pin}_{joint} P
+    idyntreeOutputMatrix.rightCols(m_idyntreeModel.getNrOfDOFs()) =
+        pinocchioInputMatrix.rightCols(m_idyntreeModel.getNrOfDOFs()) * m_pinocchio_P_idyntree;
+
+    return;
+}
+
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+void KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::
+     convertRightSideOfMassMatrixFromPinocchioToiDynTree(const MatrixXs& pinocchioInputMatrix,
+                                                               MatrixXs& idyntreeOutputMatrix)
+{
+    // See  "Dynamics" section in doc/theory_background.md,
+    // This function implements the part on the right of the mass matrix transformaton from Pinocchio to iDynTree
+    // O = T^T I
+    // where I is the input pinocchio matrix, and O is the output iDynTree matrix
+    // And T^T is the matrix that transform pinocchio generalized torques in iDynTree generalized torques
+
+    // This can be written as
+    // [ O_{b,b}   O_{b,j} ] = [ {}^B X_velReprFrame^T        0    ] [ I_{b,b}   I_{b,j} ]
+    // [ O_{j,b}   O_{j,j} ] = [      0                     P^T    ] [ I_{j,b}   I_{j,j} ]
+
+    //  [ O_{b,b}   O_{b,j} ] = [ {}^B X_velReprFrame^T I_{b,b}   {}^B X_velReprFrame^T I_{b,j} ]
+    //  [ O_{j,b}   O_{j,j} ] = [ P^T I_{j,b}                     P^T I_{j,j} ]
+
+    // Base rows part
+    idyntreeOutputMatrix.topRows(6) =
+        getBaseHVelReprFrameTransform().toActionMatrix().transpose()*pinocchioInputMatrix.topRows(6);
+
+    // Joint rows part
+    idyntreeOutputMatrix.bottomRows(m_idyntreeModel.getNrOfDOFs()) =
+        m_pinocchio_P_idyntree.transpose() * pinocchioInputMatrix.bottomRows(m_idyntreeModel.getNrOfDOFs());
+
+    return;
+}
+
 
 template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
 inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobotModel(
@@ -304,10 +388,13 @@ inline bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::loadRobo
 
     // Resize buffers
     m_bufJacobian.resize(6, 6 + m_idyntreeModel.getNrOfDOFs());
+    m_bufMassMatrix.resize(6 + m_idyntreeModel.getNrOfDOFs(), 6 + m_idyntreeModel.getNrOfDOFs());
 
     // Reset cache variables
     m_isStateSet = false;
     m_isAccelerationSet = false;
+    m_isConvertedStateUpdated = false;
+    m_isConvertedAccelerationUpdated = false;
     m_isFwdKinematicsUpdated = false;
     m_areBiasAccelerationsUpdated = false;
 
@@ -642,7 +729,7 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameFreeFlo
                                     m_bufJacobian);
 
     // Transform the left side from accepting v^{pin} to v^{idyn}
-    convertLeftSideOfMatrixFromPinocchioToiDynTree(m_bufJacobian, outJacobian);
+    convertLeftSideOfJacobianMatrixFromPinocchioToiDynTree(m_bufJacobian, outJacobian);
 
     return true;
 }
@@ -698,6 +785,37 @@ bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFrameAcc(
     return true;
 }
 
+template <typename Scalar, int Options, template <typename, int> class JointCollectionTpl>
+bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFreeFloatingMassMatrix(MatrixXs& freeFloatingMassMatrix)
+{
+    if (!m_isStateSet)
+    {
+        if (m_verbose)
+        {
+            std::cerr << "Error: iDynFor::KinDynComputationsTpl::getFreeFloatingMassMatrix called before any call to setRobotState "
+                      << std::endl;
+        }
+        return false;
+    }
+
+    this->convertModelStateFromiDynTreeToPinocchio();
+
+    // Compute upper triangular part of the mass matrix
+    pinocchio::crba(m_pinModel, m_pinData, m_pin_model_position);
+
+    // Compute the full mass matrix
+    m_pinData.M.template triangularView<Eigen::StrictlyLower>() = m_pinData.M.transpose().template triangularView<Eigen::StrictlyLower>();
+
+    // Convert to idyntree formalism
+    // M^{idyntree} = T^T M^{pin} T
+    // decomposed as
+    // buf = M^{pin} T
+    this->convertLeftSideOfMassMatrixFromPinocchioToiDynTree(m_pinData.M, m_bufMassMatrix);
+    // M^{idyntree} = T^T buf
+    this->convertRightSideOfMassMatrixFromPinocchioToiDynTree(m_bufMassMatrix, freeFloatingMassMatrix);
+
+    return true;
+}
 
 
 } // namespace iDynFor
