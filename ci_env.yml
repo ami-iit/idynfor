@@ -4,10 +4,11 @@ channels:
 dependencies:
   - cmake
   - compilers
-  - make 
+  - make
   - ninja
   - pkg-config
   - idyntree
   - pinocchio
   - catch2
   - eigenpy
+  - icub-models
