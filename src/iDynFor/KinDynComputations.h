@@ -416,6 +416,76 @@ public:
      */
     bool getFreeFloatingMassMatrix(MatrixXs& freeFloatingMassMatrix);
 
+
+    /**
+     * @brief Compute the free floating inverse dynamics.
+     *
+     * This method computes \f$M(q) \dot{\nu} + C(q, \nu) \nu + G(q) - \sum_{L \in \mathcal{L}} J_L^T \mathrm{f}_L^x \in \mathbb{R}^{6+n_{DOF}}\f$.
+     *
+     * The semantics of baseAcc, the base part of baseForceAndJointTorques
+     * and of the elements of linkExtWrenches depend of the chosen FrameVelocityRepresentation .
+     *
+     * The state is the one given set by the setRobotState method, and the acceleration is the one set by the setRobotAcceleration method.
+     *
+     * @param[in] linkExtForces the external wrenches excerted by the environment on the model
+     * @param[out] baseForceAndJointTorques the output generalized torques
+     * @return true if all went well, false otherwise
+     */
+    bool inverseDynamics(const LinkNetExternalWrenches & linkExtForces,
+                               Eigen::Ref<VectorXs> baseForceAndJointTorques);
+
+    /**
+     * @brief Compute the getNrOfDOFS()+6 vector of generalized bias (gravity+coriolis) forces.
+     *
+     * This method computes \f$C(q, \nu) \nu + G(q) \in \mathbb{R}^{6+n_{DOF}}\f$.
+     *
+     * The semantics of the base part of generalizedBiasForces depend of the chosen FrameVelocityRepresentation .
+     *
+     * The state is the one given set by the setRobotState method.
+     *
+     * @param[out] generalizedBiasForces the output generalized bias forces
+     * @return true if all went well, false otherwise
+     */
+    bool generalizedBiasForces(Eigen::Ref<VectorXs> generalizedBiasForces);
+
+
+    /**
+     * @brief Compute the getNrOfDOFS()+6 vector of generalized gravity forces.
+     *
+     * This method computes \f$G(q) \in \mathbb{R}^{6+n_{DOF}}\f$.
+     *
+     * The semantics of the base part of generalizedGravityForces depend of the chosen FrameVelocityRepresentation .
+     *
+     * The state is the one given set by the setRobotState method.
+     *
+     * @note generalizedGravityForces has to be a (6 + dofs)-d vector. The first 6 elements will
+     * contain the bias forces related to the system base, while the last dofs elements
+     * related to the joints.
+     *
+     * @warning the Span objects should point an already existing memory. Memory allocation and resizing cannot be achieved with this kind of objects.
+     * @return true if all went well, false otherwise.
+     */
+    bool generalizedGravityForces(Eigen::Ref<VectorXs> generalizedGravityForces);
+
+    /**
+     * @brief Compute the getNrOfDOFS()+6 vector of generalized external forces.
+     *
+     * This method computes \f$ -\sum_{L \in \mathcal{L}} J_L^T \mathrm{f}_L^x \in \mathbb{R}^{6+n_{DOF}} \f$.
+     *
+     * @warning Note that this method returns the **negated** sum of the product of jacobian and the external force,
+     *          consistently with how the generalized external forces are computed in the KinDynComputations::inverseDynamics method.
+     *
+     * The semantics of the base part of generalizedExternalForces
+     * and of the elements of linkExtWrenches depend of the chosen FrameVelocityRepresentation .
+     *
+     * The state is the one given set by the setRobotState method.
+     *
+     * @param[out] generalizedExternalForces the output external generalized forces
+     * @return true if all went well, false otherwise
+     */
+    bool generalizedExternalForces(const LinkNetExternalWrenches & linkExtForces,
+                                         Eigen::Ref<VectorXs> & generalizedExternalForces);
+
     //@}
 
 
