@@ -318,18 +318,18 @@ In mathematical terms:
 
 | Velocity Representation Convention (Pinocchio)  | `pinocchio::getFrameAcceleration` for frame $F$   | `pinocchio::getFrameClassicalAcceleration` for frame $F$  |
 |:-----------------------------------:|:------------------------------------------------:|:------------------:|
-| `LOCAL_WORLD_ALIGNED`               |  ${}^{F[A]} X_{A} {}^A \dot{v}_{A,F}$            | ${}^{F[A]} \dot{v}_{A,F}$            |
-|   `WORLD`                           |  ${}^A \dot{v}_{A,F}$                            | ${}^{A} X_{F[A]} {}^{F[A]} \dot{v}_{A,F}$           |
-|   `LOCAL`                           |  ${}^{F} X_{A} {}^A \dot{v}_{A,F}$               | ${}^{F} X_{F[A]} {}^{F[A]} \dot{v}_{A,F}$  |
+| `LOCAL_WORLD_ALIGNED`               |  ${}^{F[A]} X_{A} {}^A \dot{\mathrm{v}}_{A,F}$            | ${}^{F[A]} \dot{\mathrm{v}}_{A,F}$            |
+|   `WORLD`                           |  ${}^A \dot{\mathrm{v}}_{A,F}$                            | ${}^{A} X_{F[A]} {}^{F[A]} \dot{\mathrm{v}}_{A,F}$           |
+|   `LOCAL`                           |  ${}^{F} X_{A} {}^A \dot{\mathrm{v}}_{A,F}$               | ${}^{F} X_{F[A]} {}^{F[A]} \dot{\mathrm{v}}_{A,F}$  |
 
 
 | Velocity Representation Convention (iDynTree)  | `iDynTree::KinDynComputations::getFrameAcc` for frame $F$  |
 |:-----------------------------------:|:------------------------------------------------:|
-| `MIXED_REPRESENTATION`               |  ${}^{F[A]} \dot{v}_{A,F}$            |
-|   `INERTIAL_FIXED_REPRESENTATION`                           |  ${}^A \dot{v}_{A,F}$  |
-|   `BODY_FIXED_REPRESENTATION`                           |  ${}^{F} \dot{v}_{A,F}$               |
+| `MIXED_REPRESENTATION`               |  ${}^{F[A]} \dot{\mathrm{v}}_{A,F}$            |
+|   `INERTIAL_FIXED_REPRESENTATION`                           |  ${}^A \dot{\mathrm{v}}_{A,F}$  |
+|   `BODY_FIXED_REPRESENTATION`                           |  ${}^{F} \dot{\mathrm{v}}_{A,F}$               |
 
-Given that ${}^{F} \dot{v}\_{A,F} = {}^F X\_A {}^A \dot{v}\_{A,F}$ (to demonstrated that, just use equation 2.36 in https://traversaro.github.io/traversaro-phd-thesis/traversaro-phd-thesis.pdf), in a nutsheel this means that we can use `pinocchio::getFrameAcceleration` in the `INERTIAL_FIXED_REPRESENTATION` and `BODY_FIXED_REPRESENTATION`, and `pinocchio::getFrameClassicalAcceleration` for `MIXED_REPRESENTATION`.
+Given that ${}^{F} \dot{\mathrm{v}}\_{A,F} = {}^F X\_A {}^A \dot{\mathrm{v}}\_{A,F}$ (to demonstrate that, just use equation 2.36 in https://traversaro.github.io/traversaro-phd-thesis/traversaro-phd-thesis.pdf), in a nutsheel this means that we can use `pinocchio::getFrameAcceleration` in the `INERTIAL_FIXED_REPRESENTATION` and `BODY_FIXED_REPRESENTATION`, and `pinocchio::getFrameClassicalAcceleration` for `MIXED_REPRESENTATION`.
 
 ### Dynamics
 
