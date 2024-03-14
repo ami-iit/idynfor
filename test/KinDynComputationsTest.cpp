@@ -101,6 +101,19 @@ TEST_CASE("KinDynComputations")
             REQUIRE(iDynTree::toEigen(base_acc_copy).isApprox(iDynTree::toEigen(base_acc)));
             REQUIRE(iDynTree::toEigen(joint_acc_copy).isApprox(iDynTree::toEigen(joint_acc)));
 
+            // Test getFreeFloatingMassMatrix
+            Eigen::MatrixXd massMatrixFor(6+idynmodel.getNrOfDOFs(), 6+idynmodel.getNrOfDOFs());
+            Eigen::MatrixXd massMatrixTree(6+idynmodel.getNrOfDOFs(), 6+idynmodel.getNrOfDOFs());
+            REQUIRE(kinDynFor.getFreeFloatingMassMatrix(iDynTree::make_matrix_view(massMatrixFor)));
+            REQUIRE(kinDynTree.getFreeFloatingMassMatrix(iDynTree::make_matrix_view(massMatrixTree)));
+            // Uncomment for debug
+            std::cerr << "massMatrix  " << std::endl;
+            std::cerr << "iDynFor  " << std::endl;
+            std::cerr << massMatrixFor << std::endl;
+            std::cerr << "iDynTree  " << std::endl;
+            std::cerr << massMatrixTree << std::endl;
+            REQUIRE(massMatrixFor.isApprox(massMatrixTree));
+
             // Test frame-related methods
             int nrOfFramesToTest = 20;
             for (int fr = 0; fr < nrOfFramesToTest; fr++)

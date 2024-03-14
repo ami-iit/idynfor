@@ -10,6 +10,7 @@ add_idynfor_test(NAME KinDynComputationsTest
                  LINKS iDynFor::iDynFor iDynTree::idyntree-high-level)
 
 
+find_package(icub-models REQUIRED)
 add_idynfor_test(NAME KinDynComputationsBenchmark
                  SOURCES KinDynComputationsBenchmark.cpp
-                 LINKS iDynFor::iDynFor iDynTree::idyntree-high-level)
+                 LINKS iDynFor::iDynFor iDynTree::idyntree-high-level icub-models::icub-models)

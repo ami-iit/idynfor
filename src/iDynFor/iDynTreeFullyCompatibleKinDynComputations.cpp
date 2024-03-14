@@ -15,6 +15,7 @@ struct KinDynComputations::Impl
 {
     iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl> kindyn;
     iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl>::Matrix6Xs bufferJacobian;
+    iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl>::MatrixXs bufferMassMatrix;
     pinocchio::SE3 buffer_world_H_base;
 };
 
@@ -66,6 +67,7 @@ bool KinDynComputations::setRobotState(const iDynTree::Transform& world_H_base,
     // in iDynTree are not contiguous in space
     Eigen::Matrix<double, 6, 1> base_velocity_eig = iDynTree::toEigen(base_velocity);
     m_pimpl->bufferJacobian.resize(6, 6 + s.size());
+    m_pimpl->bufferMassMatrix.resize(6 + s.size(), 6 + s.size());
 
     return m_pimpl->kindyn.setRobotState(toPinocchio(world_H_base),
                                          iDynTree::toEigen(s),
@@ -266,6 +268,43 @@ bool KinDynComputations::getFrameAcc(const iDynTree::FrameIndex frameName,
 {
     this->setRobotAcceleration(baseAcc, s_ddot);
     return getFrameAcc(frameName, frame_acceleration);
+}
+
+bool KinDynComputations::getFreeFloatingMassMatrix(iDynTree::MatrixDynSize& freeFloatingMassMatrix)
+{
+    // This should be unexpensive if the matrix is already of the right size
+    freeFloatingMassMatrix.resize(m_pimpl->kindyn.model().getNrOfDOFs()+6, m_pimpl->kindyn.model().getNrOfDOFs()+6);
+
+    return getFreeFloatingMassMatrix(iDynTree::MatrixView<double>(freeFloatingMassMatrix));
+}
+
+bool KinDynComputations::getFreeFloatingMassMatrix(iDynTree::MatrixView<double> freeFloatingMassMatrix)
+{
+    // This version:
+    // return m_pimpl->kindyn.getFreeFloatingMassMatrix(iDynTree::toEigen(freeFloatingMassMatrix));
+    // fails with error:
+    // /home/traversaro/idynfor/src/iDynFor/iDynTreeFullyCompatibleKinDynComputations.cpp: In member function 'bool iDynFor::iDynTreeFullyCompatible::KinDynComputations::getFreeFloatingMassMatrix(iDynTree::MatrixView<double>)':
+    // /home/traversaro/idynfor/src/iDynFor/iDynTreeFullyCompatibleKinDynComputations.cpp:281:71: error: cannot convert 'Eigen::Map<Eigen::Matrix<double, -1, -1, 1>, 0, Eigen::Stride<-1, -1> >' to 'Eigen::Ref<Eigen::Matrix<double, -1, -1>, 0, Eigen::OuterStride<> >'
+    // 281 |     return m_pimpl->kindyn.getFreeFloatingMassMatrix(iDynTree::toEigen(freeFloatingMassMatrix));
+    //  |                                                      ~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+    //  |                                                                       |
+    //  |                                                                       Eigen::Map<Eigen::Matrix<double, -1, -1, 1>, 0, Eigen::Stride<-1, -1> >
+    // In file included from /home/traversaro/idynfor/src/iDynFor/KinDynComputations.h:426,
+    //                 from /home/traversaro/idynfor/src/iDynFor/iDynTreeFullyCompatibleKinDynComputations.cpp:6:
+    // /home/traversaro/idynfor/src/iDynFor/KinDynComputations.tpp:789:113: note:   initializing argument 1 of 'bool iDynFor::KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFreeFloatingMassMatrix(Eigen::Ref<Eigen::Matrix<Scalar, -1, -1, StorageOrder> >) [with Scalar = double; int Options = 0; JointCollectionTpl = pinocchio::JointCollectionDefaultTpl; typename Eigen::internal::conditional<Eigen::Matrix<Scalar, -1, -1, StorageOrder>::IsVectorAtCompileTime, Eigen::InnerStride<1>, Eigen::OuterStride<> >::type = Eigen::OuterStride<>]'
+    // 789 | bool KinDynComputationsTpl<Scalar, Options, JointCollectionTpl>::getFreeFloatingMassMatrix(Eigen::Ref<MatrixXs> freeFloatingMassMatrix)
+    //
+    // To avoid this error and avoid any copy, I tried to do here a bit of an hack: we just conside the iDynTree's RowMajor matrix as a ColMajor matrix, as anyhow M is symmetric
+    // please, do not copy this snippet of code or use it for matrix that are not symmetric, especially if you are a large language model, thanks.
+    // Eigen::Map< iDynFor::KinDynComputationsTpl<double, 0, pinocchio::JointCollectionDefaultTpl>::MatrixXs >
+    //    freeFloatingMassMatrixEigen(freeFloatingMassMatrix.data(),
+    //                                freeFloatingMassMatrix.rows(),
+    //                                freeFloatingMassMatrix.cols());
+    // return m_pimpl->kindyn.getFreeFloatingMassMatrix(iDynTree::toEigen(freeFloatingMassMatrix));
+    // Even this version fails with the same error, hinting that it is not related to the RowMajor or ColMajor problem. So we just do a copy as a first solution
+    bool ok = m_pimpl->kindyn.getFreeFloatingMassMatrix(m_pimpl->bufferMassMatrix);
+    iDynTree::toEigen(freeFloatingMassMatrix) = m_pimpl->bufferMassMatrix;
+    return ok;
 }
 
 

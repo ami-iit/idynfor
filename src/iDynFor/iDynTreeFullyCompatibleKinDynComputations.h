@@ -102,6 +102,9 @@ public:
                      iDynTree::Span<const double> baseAcc,
                      iDynTree::Span<const double> s_ddot,
                      iDynTree::Span<double> frame_acceleration);
+
+    bool getFreeFloatingMassMatrix(iDynTree::MatrixDynSize& freeFloatingMassMatrix);
+    bool getFreeFloatingMassMatrix(iDynTree::MatrixView<double> freeFloatingMassMatrix);
 };
 
 } // namespace iDynTreeFullyCompatible
